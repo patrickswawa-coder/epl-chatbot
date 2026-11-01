@@ -8,12 +8,17 @@
 epl-chatbot/
 ├── app.py                    # Streamlit 챗봇 화면 (진입점)
 ├── text_to_sql.py            # 질문 → SQL → 조회 → 답변, 검증·재생성·오류 처리
+├── fast_path.py              # 빠른 경로: 자주 묻는 질문을 GPT 없이 고정 SQL로 조회
+├── cards.py                  # 빠른 경로 결과 카드(프로필·비교·상대전적) HTML
+├── theme.py                  # 화면 디자인(다크 스코어보드 테마) CSS
+├── .streamlit/config.toml    # 다크 테마 색상 설정
 ├── error_codes.py            # 오류 코드 E01~E09 문구
 ├── start_auto_collect.bat    # 자동 수집 실행 (Windows, 더블클릭)
 ├── rate_limiter.py           # 호출 제한 (E08): 세션당 분당 5회, 하루 200회
 ├── query_logger.py           # 처리 기록 저장 (app_log.db)
 ├── pages/admin.py            # 관리자 화면 (/admin, 비밀번호 필요)
-├── tests/accuracy_test.py    # 30문항 정확도 테스트
+├── tests/accuracy_test.py    # 30문항 정확도 테스트 (OpenAI 키 필요)
+├── tests/fast_path_test.py   # 빠른 경로 정답 대조 테스트 (키 없이 실행)
 ├── requirements.txt
 ├── .env                      # API 키·관리자 비밀번호 (직접 만들기, 공유 금지)
 ├── database/
@@ -65,6 +70,20 @@ python data_collection/auto_collect.py  # 카드 등 API-Football 보완 수집 
 python tests/accuracy_test.py           # 정확도 테스트 (OpenAI 호출 발생)
 ```
 
+## 빠른 경로 (FAST PATH)
+질문이 아래 유형에 **정확히** 맞으면 GPT를 거치지 않고 검증된 고정 SQL로 DB를 바로 조회합니다.
+애매하거나 시즌·홈/원정·상대팀 같은 추가 조건이 있으면 기존 GPT 경로로 넘어갑니다.
+
+| 유형 | 예시 질문 | 화면 |
+|---|---|---|
+| 골·어시스트 수 | 쏘니 골 몇 개야? | 큰 숫자 |
+| 선수 프로필 | 손흥민 알려줘 | 프로필 카드 + 시즌별 막대 |
+| 시즌별 골 | 케인 시즌별 골 수 | 막대 카드 |
+| 선수 비교 | 손흥민이랑 케인 비교해줘 | 비교 카드 |
+| 팀 상대전적 | 아스날과 맨시티 상대전적 | 상대전적 카드 |
+
+테스트: `python tests/fast_path_test.py` (모든 선수·팀 조합을 다른 SQL로 다시 계산해 대조)
+
 ## 동작 방식
 1. **입력 검증**(E01) → 2. **범위 확인**(E02): EPL 기록과 무관하면 안내
 3. 별명을 DB 이름으로 변환("덕베" → Kevin De Bruyne) → GPT가 SELECT SQL 생성
@@ -72,7 +91,8 @@ python tests/accuracy_test.py           # 정확도 테스트 (OpenAI 호출 발
 5. DB는 **읽기 전용**으로 열고 5초 초과 시 중단(E06)
 6. 결과를 문장으로 요약하고 **숫자가 조회 결과에 있는지 검증**(E07)
 7. DB에 없는 축구 지식은 GPT 지식으로 답하되 "DB로 확인되지 않음" 경고를 표시
-8. 모든 처리는 `app_log.db`에 기록, 관리자 화면에서 오류 코드별로 확인
+8. 인사이트 줄은 JOIN·평균·비율 표현을 막고, `ENABLE_INSIGHT=0`으로 끌 수 있음
+9. 모든 처리는 `app_log.db`에 기록, 관리자 화면에서 오류 코드별로 확인
 
 ## 오류 코드
 | 코드 | 의미 |

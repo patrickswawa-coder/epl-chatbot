@@ -166,6 +166,100 @@ html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
 [data-testid="stPageLink"] a:hover, [data-testid="stPageLink-NavLink"]:hover { border-color: var(--lime) !important; }
 [data-testid="stPageLink"] a *, [data-testid="stPageLink-NavLink"] * { color: var(--text) !important; }
 
+
+/* ---------- 빠른 경로 카드 (프로필·비교·상대전적) ---------- */
+.pcard { background: var(--panel); border-top: 3px solid var(--lime); margin: 0 0 .8rem; }
+.pcard-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1.3rem 1.6rem 1rem; }
+.pcard-kicker { font-family: var(--num); letter-spacing: .22em; font-size: .9rem; color: var(--mute); }
+.pcard-kicker.mute { color: var(--mute); }
+.pcard-name { font-family: var(--head); font-weight: 400; font-size: 2.3rem; line-height: 1.1; color: var(--text); margin-top: .25rem; }
+.pcard-name.sm { font-size: 1.8rem; margin-top: 0; }
+.pcard-en { font-family: var(--num); letter-spacing: .18em; font-size: .95rem; color: var(--lime); }
+.pcard-sub { font-size: .75rem; color: var(--mute); text-align: right; line-height: 1.5; }
+.pcard-sec { padding: 1.2rem 1.6rem .9rem; border-top: 1px solid var(--line); }
+.hi { color: var(--lime) !important; }
+
+.stat3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border-top: 1px solid var(--line); }
+.stat3 .cell { background: var(--panel); padding: 1.1rem 1.6rem; }
+.stat3 .n { font-family: var(--num); font-size: 4.2rem; line-height: .9; color: var(--text); }
+.stat3 .l { font-size: .8rem; color: var(--mute); margin-top: .3rem; }
+
+.bars { display: flex; align-items: flex-end; gap: .6rem; margin-top: .8rem; }
+.bcol { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: .3rem; }
+.bv { font-family: var(--num); font-size: 1.15rem; color: var(--soft); }
+.btrack { width: 100%; height: 130px; display: flex; align-items: flex-end; }
+.bfill { width: 100%; background: var(--line2); }
+.bfill.hi { background: var(--lime); }
+.bl { font-size: .7rem; color: var(--mute); }
+.bl .short { display: none; }
+.bnote { margin-top: .6rem; font-size: .72rem; color: var(--mute); display: none; }
+
+.cmp-names { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px; padding: .2rem 1.6rem 1rem; }
+.cmp-name { padding-left: .6rem; }
+.cmp-name.left { text-align: right; padding-left: 0; padding-right: .6rem; }
+.cmp-row { border-top: 1px solid var(--line); padding: .8rem 1.6rem 1rem; }
+.cmp-label { text-align: center; font-size: .8rem; color: var(--mute); margin-bottom: .4rem; }
+.cmp-bars { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px; align-items: center; }
+.cmp-side { display: flex; align-items: center; gap: .8rem; min-width: 0; }
+.cmp-side.left { justify-content: flex-end; }
+.cmp-side.right { justify-content: flex-start; }
+.cfill { height: 20px; flex: 0 1 auto; min-width: 4px; background: var(--line2); }
+.cfill.hi { background: var(--lime); }
+.cv { font-family: var(--num); font-size: 2.6rem; line-height: 1; color: var(--text); flex: 0 0 auto; white-space: nowrap; }
+.cmp-side.left .cv { text-align: right; min-width: 0; }
+.cmp-side.right .cv { min-width: 0; }
+
+.h2h-top { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 1rem; padding: .4rem 1.6rem 0; }
+.h2h-team.r { text-align: right; }
+.h2h-score { display: flex; align-items: flex-end; gap: .8rem; font-family: var(--num); font-size: 6rem; line-height: .88; color: var(--text); }
+.h2h-score i { font-style: normal; font-size: 3rem; color: var(--line2); padding-bottom: .3rem; }
+.h2h-cap { text-align: center; font-size: .75rem; color: var(--mute); padding: .3rem 0 1rem; }
+.wdl-wrap { padding: 0 1.6rem 1.2rem; }
+.wdl { display: flex; height: 14px; gap: 2px; }
+.wdl .w { background: var(--lime); }
+.wdl .d { background: #4A6356; }
+.wdl .l { background: #1F3A2D; }
+.wdl-l { display: flex; justify-content: space-between; margin-top: .5rem; font-size: .8rem; color: var(--soft); }
+.wdl-l b { font-family: var(--num); font-size: 1.4rem; font-weight: 400; color: var(--text); margin-right: .15rem; }
+.recent { margin-top: .5rem; }
+.rrow { display: grid; grid-template-columns: 110px minmax(0, 1fr) 90px minmax(0, 1fr); gap: .8rem; align-items: center; padding: .6rem 0; border-top: 1px solid var(--line); font-size: .9rem; color: var(--soft); }
+.rrow .rd { color: var(--mute); }
+.rrow .rh { text-align: right; }
+.rrow .rs { font-family: var(--num); font-size: 1.4rem; text-align: center; letter-spacing: .06em; color: var(--text); }
+
+@media (max-width: 640px) {
+    .pcard-head { padding: 1rem 1rem .8rem; flex-direction: column; align-items: flex-start; gap: .4rem; }
+    .pcard-sub { text-align: left; }
+    .pcard-name { font-size: 1.9rem; }
+    .pcard-name.sm { font-size: 1.3rem; }
+    .pcard-sec { padding: 1rem 1rem .8rem; }
+    .stat3 .cell { padding: .8rem .8rem; }
+    .stat3 .n { font-size: 3rem; }
+    .stat3 .l { font-size: .7rem; }
+    .bars { gap: .25rem; }
+    .btrack { height: 100px; }
+    .bv { font-size: .95rem; }
+    .bl .long { display: none; }
+    .bl .short { display: inline; }
+    .bnote { display: block; }
+    .pcard-en { letter-spacing: .08em; font-size: .78rem; }
+    .cmp-names { padding: .2rem 1rem .8rem; }
+    .cmp-row { padding: .7rem 1rem .8rem; }
+    .cv { font-size: 2rem; }
+    .cfill { height: 14px; }
+    .cmp-side { gap: .4rem; }
+    .h2h-top { padding: .2rem 1rem 0; gap: .5rem; }
+    .h2h-score { font-size: 3.8rem; gap: .4rem; }
+    .h2h-score i { font-size: 2rem; }
+    .wdl-wrap { padding: 0 1rem 1rem; }
+    .wdl-l { font-size: .72rem; }
+    .rrow { grid-template-columns: 1fr auto 1fr; grid-template-areas: "d d d" "h s a"; gap: .1rem .5rem; padding: .55rem 0; }
+    .rrow .rd { grid-area: d; font-size: .7rem; }
+    .rrow .rh { grid-area: h; text-align: left; }
+    .rrow .rs { grid-area: s; font-size: 1.25rem; }
+    .rrow .ra { grid-area: a; text-align: right; }
+}
+
 /* 자동 페이지 메뉴 숨김 */
 [data-testid="stSidebarNav"] { display: none; }
 

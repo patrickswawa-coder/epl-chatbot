@@ -50,6 +50,7 @@ DB_PATH = BASE_DIR / "football_history.db"
 # 화면 디자인 (theme.py: 밤 경기장 스코어보드 스타일)
 # =========================================================
 
+from cards import card_html  # noqa: E402
 from theme import apply_theme  # noqa: E402
 
 apply_theme()
@@ -147,6 +148,15 @@ def render_scoreboard(result: dict, answer_text: str | None) -> None:
         f'<span class="score-unit">{escape(unit)}</span></div>',
         unsafe_allow_html=True,
     )
+
+
+def render_card(result: dict) -> bool:
+    """빠른 경로가 만든 카드(프로필·비교·상대전적)를 그린다. 그렸으면 True."""
+    html = card_html((result or {}).get("card"))
+    if not html:
+        return False
+    st.markdown(html, unsafe_allow_html=True)
+    return True
 
 
 def render_insight(insight: str | None) -> None:
@@ -362,7 +372,7 @@ if not st.session_state.messages:
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
-        if msg.get("result"):
+        if msg.get("result") and not render_card(msg["result"]):
             render_scoreboard(msg["result"], msg["content"])
         st.markdown(msg["content"])
 
@@ -504,7 +514,8 @@ if question:
             assistant_text = result.get("answer") or "조회 결과가 없습니다."
 
             render_fallback_badge(result.get("answer_source"))
-            render_scoreboard(result, assistant_text)
+            if not render_card(result):
+                render_scoreboard(result, assistant_text)
             st.markdown(assistant_text)
 
             render_insight(result.get("insight"))
@@ -529,7 +540,7 @@ if question:
                     if col not in numeric_cols
                 ]
 
-                if numeric_cols and text_cols and len(df) >= 2:
+                if numeric_cols and text_cols and len(df) >= 2 and not result.get("card"):
                     label_col = text_cols[0]
                     value_col = numeric_cols[0]
 

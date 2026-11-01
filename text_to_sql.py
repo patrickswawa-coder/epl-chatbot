@@ -1357,6 +1357,17 @@ def answer_question(
         result["error_code"] = code
         return result
 
+    # [빠른 경로] 자주 묻는 질문(골·어시스트 수, 프로필, 시즌별 골, 선수 비교, 팀 상대전적)은
+    # GPT 없이 검증된 고정 SQL로 답한다. 맞지 않거나 문제가 생기면 아래 기존 경로로 진행한다.
+    try:
+        from fast_path import try_fast_path
+
+        fast = try_fast_path(question)
+    except Exception:
+        fast = None
+    if fast:
+        return fast
+
     # --------------------------------------------------------
     # 1~2) SQL 생성 → 검증 → 실행
     #      실패하면 오류 내용을 알려 주며 다시 생성한다 (최초 1회 + 재생성 최대 2회).
