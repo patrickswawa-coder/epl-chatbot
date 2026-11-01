@@ -263,27 +263,32 @@ with st.sidebar:
     )
 
     example_questions = [
-        "손흥민이 넣은 골의 개수는?",
+        "손흥민 프로필 보여줘",
+        "손흥민이랑 케인 비교해줘",
+        "아스날 맨시티 상대전적",
+        "살라 골 몇 개야?",
+        "해리 케인 시즌별 골 수",
         "골을 가장 많이 넣은 선수 10명 보여줘",
+        "어시스트를 가장 많이 한 선수는 누구야?",
         "아스날과 맨시티의 경기 결과를 보여줘",
         "손흥민의 골이 가장 많이 나온 시간대는?",
-        "어시스트를 가장 많이 한 선수는 누구야?",
+        "토트넘 아스날 상대전적",
     ]
 
-    # [NEW] 대화가 시작되면 고정 예시 대신, 방금 나눈 대화를 기반으로
-    # GPT가 만든 후속 질문을 보여준다. 대화 시작 전에는 기존 고정 예시를 그대로 사용.
+    # 후속 질문(방금 대화 기반)은 위에 보여주되, 추천 질문은 항상 함께 남겨 둔다.
+    # 축구를 잘 모르는 사람도 버튼만 눌러 물어볼 수 있게 하기 위함.
     if st.session_state.followup_questions:
         st.markdown('<div class="side-label">NEXT · 이어서 물어보기</div>', unsafe_allow_html=True)
 
         for i, followup in enumerate(st.session_state.followup_questions):
             if st.button(f"{i + 1:02d}   {followup}", use_container_width=True, key=f"followup_{i}"):
                 st.session_state.pending_question = followup
-    else:
-        st.markdown('<div class="side-label">TRY ASKING · 추천 질문</div>', unsafe_allow_html=True)
 
-        for i, example in enumerate(example_questions):
-            if st.button(f"{i + 1:02d}   {example}", use_container_width=True, key=f"example_{i}"):
-                st.session_state.pending_question = example
+    st.markdown('<div class="side-label">TRY ASKING · 추천 질문</div>', unsafe_allow_html=True)
+
+    for i, example in enumerate(example_questions):
+        if st.button(f"{i + 1:02d}   {example}", use_container_width=True, key=f"example_{i}"):
+            st.session_state.pending_question = example
 
     stats = get_db_stats()
 
