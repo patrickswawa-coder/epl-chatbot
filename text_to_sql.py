@@ -919,7 +919,7 @@ def generate_insight(
     if re.search(r"번째|가장|최고|최다|최초|최소|팀 ?내|리그 ?내|역대|\d위|랭킹|순위", template):
         return None
     # 평균·비율처럼 분모(시즌 수·경기 수)에 따라 달라지는 파생 수치도 쓰지 않는다 (예: "시즌당 약 15.9골")
-    if re.search(r"평균|시즌당|경기당|매 ?시즌|비율|확률|퍼센트|%|당 약|per", template):
+    if re.search(r"평균|시즌당|경기당|매 ?시즌|비율|확률|퍼센트|%|당 약", template):
         return None
 
     insight_text = template
