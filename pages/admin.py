@@ -18,6 +18,7 @@ st.set_page_config(page_title="관리자 · 처리 기록", page_icon="🛠️",
 st.markdown(
     "<style>[data-testid='stSidebarNav']{display:none}</style>", unsafe_allow_html=True
 )
+st.page_link("app.py", label="챗봇으로 돌아가기", icon="⚽")
 st.title("🛠️ 관리자 · 처리 기록")
 
 
@@ -63,4 +64,3 @@ st.dataframe(df, use_container_width=True, hide_index=True)
 st.download_button(
     "CSV 내려받기", df.to_csv(index=False).encode("utf-8-sig"), "query_logs.csv", "text/csv"
 )
-st.page_link("app.py", label="← 챗봇으로 돌아가기")

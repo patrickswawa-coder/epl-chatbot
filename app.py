@@ -565,6 +565,8 @@ with st.sidebar:
         st.session_state.followup_questions = []
         st.rerun()
 
+    st.page_link("pages/admin.py", label="관리자 화면", icon="🛠️", use_container_width=True)
+
     st.caption("※ 답변은 연결된 EPL 데이터베이스를 기준으로 생성됩니다.")
 
 
@@ -587,6 +589,12 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+# 아이폰 '홈 화면에 추가' 상태에서는 주소창이 없어 /admin으로 갈 수 없으므로,
+# 사이드바를 열지 않아도 보이는 관리자 버튼을 본문에도 둔다
+_adm_left, _adm_right = st.columns([3, 1])
+with _adm_right:
+    st.page_link("pages/admin.py", label="관리자", icon="🛠️", use_container_width=True)
 
 
 # =========================================================

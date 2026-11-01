@@ -828,6 +828,9 @@ TEMPLATE: <조회 결과를 자연스럽게 담을 한 문장. 결과 컬럼은 
 4. 이미 사용자에게 보여준 것과 완전히 동일한 정보를 반복하지 마세요.
 5. 조회 SQL의 결과 숫자로만 만들 수 있는 사실(예: 시즌별 골 수, 최근 시즌 기록)을 우선하세요.
    순위·최다·팀 내 비교처럼 SQL 결과만으로 확인되지 않는 표현은 TEMPLATE에 쓰지 마세요.
+5-0. 인사이트 SQL에는 JOIN을 쓰지 마세요(행이 중복되어 숫자가 틀립니다). 시즌 조건이 필요하면
+    match_id IN (SELECT match_id FROM matches WHERE season = '...') 형태로 쓰고,
+    골 수는 반드시 event_type = 'goal' 조건과 player = 'DB 선수명' 조건으로 COUNT(*) 하세요.
 5-1. 평균·시즌당·경기당·비율 같은 파생 수치는 만들지 마세요. (분모가 되는 시즌·경기 수가 DB 범위에 따라 달라집니다)
 6. 마땅히 덧붙일 인사이트가 떠오르지 않으면, 다른 말 없이 정확히
    한 단어 "NONE" 만 출력하세요.
@@ -856,6 +859,10 @@ def generate_insight(
         return None
 
     if client is None:
+        return None
+
+    # Secrets/환경변수 ENABLE_INSIGHT=0 이면 인사이트 줄을 아예 쓰지 않는다 (발표·시연 안전 모드)
+    if os.getenv("ENABLE_INSIGHT", "1").strip() == "0":
         return None
 
     # GPT에 너무 많은 데이터를 보내지 않도록 1행만 미리보기로 전달
@@ -904,6 +911,18 @@ def generate_insight(
     template = template_match.group(1).strip()
 
     if not insight_sql or not template:
+        return None
+
+    # JOIN은 행이 중복되어 숫자가 부풀려지기 쉽다 (예: 10골이 30골로 집계). IN (SELECT ...) 형태만 허용
+    low_isql = insight_sql.lower()
+    if re.search(r"\bjoin\b", low_isql):
+        return None
+    # 득점·골 수치를 말하면서 이벤트 종류(goal) 조건이 없으면 신뢰할 수 없다
+    if re.search(r"골|득점", template) and "match_events" in low_isql \
+            and not re.search(r"event_type\s*=\s*'goal'", low_isql):
+        return None
+    # 어시스트 수치는 assist_player 조건이 있어야 한다
+    if re.search(r"어시스트|도움", template) and "assist_player" not in low_isql:
         return None
 
     try:
