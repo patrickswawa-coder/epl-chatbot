@@ -244,6 +244,8 @@ SYSTEM_PROMPT = f"""
 13. 단순 COUNT/SUM/AVG/MIN/MAX 집계에는 불필요한 LIMIT을 붙이지 마세요.
 13-1. "이번 시즌", "올 시즌", "최근 시즌" 같은 상대적 표현은 별도 시스템 메시지로 알려 주는
     데이터베이스의 최신 시즌 코드를 기준으로 해석하세요. ("지난 시즌"은 그 바로 이전 시즌입니다.)
+13-2. 질문에 시즌·연도·"이번 시즌" 같은 기간 표현이 전혀 없으면 season 조건을 넣지 마세요.
+    이 경우 DB에 담긴 전체 기간(2014-15 시즌 이후)을 기준으로 집계합니다. (예: "손흥민 득점수" → 전 시즌 합계)
 14. 사용자가 질문한 시즌/팀/선수/경기 조건을 임의로 생략하지 마세요.
     질문에 팀이 나오면 home_team/away_team 조건을, 선수가 나오면 player/assist_player 조건을 반드시 넣으세요.
 14-1. 질문에 "(DB 선수명: Bukayo Saka)"처럼 DB 저장명이 붙어 있으면 그 이름을 정확히 그대로 사용하세요.
@@ -1176,6 +1178,11 @@ def check_sql_semantics(question: str, sql: str) -> str | None:
     for code in season_codes(q):
         if f"'{code}'" not in low:
             return f"질문의 시즌은 season = '{code}' 입니다. SQL의 시즌 조건을 확인하세요."
+
+    # 질문에 기간 표현이 없는데 SQL이 임의로 시즌을 한정하면 엉뚱한 값(예: 최신 시즌 0골)이 나온다
+    if re.search(r"season\s*(=|in)", low) and not season_codes(q) and not RECENT_RE.search(q) \
+            and not re.search(r"시즌|작년|지난|재작년|\d{4}|\d{2}[-/]\d{2}", q):
+        return "질문에 시즌·기간 표현이 없으므로 season 조건을 빼고 전체 기간으로 집계하세요."
 
     # WHERE 최상위 수준에서 AND와 OR가 괄호 없이 섞이면 조건이 엉뚱하게 묶인다
     where = re.search(r"\bwhere\b(.*)", low, re.DOTALL)
