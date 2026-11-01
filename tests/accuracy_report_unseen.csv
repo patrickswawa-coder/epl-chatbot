@@ -1,0 +1,119 @@
+﻿no,분류,질문,정답/기대,결과,오류코드,답변출처,답변,SQL,초
+1,득점,해리 케인이 2016-17 시즌에 넣은 골 수는?,정답=29,O,,db,질문하신 선수의 득점은 29골입니다.,"SELECT COUNT(*) AS goal_count
+FROM match_events
+WHERE player = 'Harry Kane'
+  AND event_type = 'goal'
+  AND match_id IN (
+      SELECT match_id
+      FROM matches
+      WHERE season = '1617'
+  )",3.9
+2,득점,데브라위너가 넣은 골은 몇 개야?,정답=73,O,,db,질문하신 선수의 득점은 73골입니다.,"SELECT COUNT(*) AS goal_count
+FROM match_events
+WHERE player LIKE '%De Bruyne%'
+  AND event_type = 'goal'",3.8
+3,득점,홀란이 2023-24 시즌에 넣은 골은 몇 개야?,정답=27,O,,db,질문하신 선수의 득점은 27골입니다.,"SELECT COUNT(*) AS goal_count
+FROM match_events
+WHERE player LIKE '%Haaland%'
+  AND event_type = 'goal'
+  AND match_id IN (
+      SELECT match_id
+      FROM matches
+      WHERE season = '2324'
+  )",3.6
+4,어시스트,2020-21 시즌 손흥민의 어시스트는 몇 개야?,정답=10,O,,db,어시스트 기록은 10회입니다.,"SELECT COUNT(*) AS assist_count
+FROM match_events
+WHERE assist_player LIKE '%Heung-Min%'
+  AND match_id IN (
+      SELECT match_id
+      FROM matches
+      WHERE season = '2021'
+  )",3.3
+5,비교,살라와 케인 중 통산 골이 더 많은 선수는 누구야?,정답=Harry Kane/210,O,,db,"통산 골 수에 따르면, 해리 케인이 210골로 더 많은 골을 기록하고 있습니다. 모하메드 살라는 191골입니다.
+
+※ 데이터베이스에 수록된 2014-15 시즌 이후 기록 기준입니다.","SELECT player, COUNT(*) AS goal_count
+FROM match_events
+WHERE event_type = 'goal' AND match_id IN (
+    SELECT match_id
+    FROM matches
+)
+AND (player = 'Mohamed Salah' OR player = 'Harry Kane')
+GROUP BY player
+ORDER BY goal_count DESC",4.0
+6,순위,2016-17 시즌 득점왕은 누구야?,정답=Harry Kane/29,O,,db,"2016-17 시즌의 득점왕은 해리 케인으로, 총 29골을 기록했습니다.","SELECT player, COUNT(*) AS goal_count
+FROM match_events
+WHERE event_type = 'goal'
+  AND match_id IN (
+      SELECT match_id
+      FROM matches
+      WHERE season = '1617'
+  )
+  AND player IS NOT NULL
+GROUP BY player
+ORDER BY goal_count DESC
+LIMIT 1",4.3
+7,순위,2023-24 시즌에 가장 많은 골을 넣은 선수는?,정답=Erling Haaland/27,O,,db,"2023-24 시즌에 가장 많은 골을 넣은 선수는 엘링 홀란으로, 총 27골을 기록했습니다.","SELECT player, COUNT(*) AS goal_count
+FROM match_events
+WHERE event_type = 'goal'
+  AND match_id IN (
+      SELECT match_id
+      FROM matches
+      WHERE season = '2324'
+  )
+  AND player IS NOT NULL
+GROUP BY player
+ORDER BY goal_count DESC
+LIMIT 1",4.0
+8,순위,2015-16 시즌 가장 많은 골을 넣은 팀은?,정답=Manchester City/71,O,,db,"2015-16 시즌 가장 많은 골을 넣은 팀은 맨체스터 시티로, 총 71골을 기록했습니다.","SELECT team, COUNT(*) AS goal_count 
+FROM match_events 
+WHERE event_type = 'goal' 
+  AND match_id IN (SELECT match_id FROM matches WHERE season = '1516') 
+GROUP BY team 
+ORDER BY goal_count DESC 
+LIMIT 1",4.5
+9,경기,아스널이 2023-24 시즌 홈에서 이긴 경기는 몇 번이야?,정답=15,O,,db,win_count: 15,"SELECT COUNT(*) AS win_count
+FROM matches
+WHERE home_team = 'Arsenal' AND season = '2324' AND home_score > away_score",3.4
+10,경기,리버풀이 2019-20 시즌에 진 경기는 몇 번이야?,정답=3,O,,db,loss_count: 3,"SELECT COUNT(*) AS loss_count
+FROM matches
+WHERE season = '1920' AND (
+    (home_team = 'Liverpool' AND home_score < away_score) OR
+    (away_team = 'Liverpool' AND away_score < home_score)
+)",3.7
+11,경기,2015-16 시즌 레스터가 이긴 경기는 몇 번이야?,정답=23,O,,db,win_count: 23,"SELECT COUNT(*) AS win_count
+FROM matches
+WHERE season = '1516' AND ((home_team = 'Leicester' AND home_score > away_score) OR (away_team = 'Leicester' AND away_score > home_score))",3.6
+12,경기,2021-22 시즌 첼시가 넣은 총 골 수는?,정답=76,O,,db,해당 팀의 득점은 76골입니다.,"SELECT SUM(CASE WHEN home_team='Chelsea' THEN home_score ELSE away_score END) AS goal_count
+FROM matches
+WHERE season='2122' AND (home_team='Chelsea' OR away_team='Chelsea')",3.5
+13,경기,2019-20 시즌 토트넘이 넣은 총 골 수는?,정답=61,O,,db,2019-20 시즌 동안 토트넘은 총 61골을 넣었습니다.,"SELECT SUM(home_score) AS goal_count
+FROM matches
+WHERE season = '1920' AND home_team = 'Tottenham'
+UNION ALL
+SELECT SUM(away_score) AS goal_count
+FROM matches
+WHERE season = '1920' AND away_team = 'Tottenham'",4.1
+14,경기,맨유가 2017-18 시즌 홈에서 진 경기는 몇 번이야?,정답=2,O,,db,loss_count: 2,"SELECT COUNT(*) AS loss_count
+FROM matches
+WHERE home_team = 'Manchester United'
+  AND season = '1718'
+  AND home_score < away_score",3.6
+15,경기,2024-25 시즌 EPL 전체 득점 수(스코어 합계)는?,정답=1115,O,,db,합계는 1115입니다.,"SELECT SUM(home_score + away_score) AS total_score
+FROM matches
+WHERE season = '2425'",3.3
+16,경기,에버턴과 리버풀의 통산 맞대결에서 리버풀이 이긴 횟수는?,정답=12,O,,db,"win_count: 12
+
+※ 데이터베이스에 수록된 2014-15 시즌 이후 기록 기준입니다.","SELECT COUNT(*) AS win_count
+FROM matches
+WHERE ((home_team LIKE '%Liverpool%' AND away_team LIKE '%Everton%' AND home_score > away_score) 
+       OR (home_team LIKE '%Everton%' AND away_team LIKE '%Liverpool%' AND home_score < away_score))",4.0
+17,오류처리,내일 서울 날씨 어때?,기대=E02,O,E02,,[E02] 지원 범위 밖의 질문입니다. EPL 경기·득점·어시스트 기록에 관한 질문을 해주세요.,,0.8
+18,오류처리,   ,기대=E01,O,E01,,[E01] 입력이 올바르지 않습니다. 비어 있지 않은 질문을 200자 이내로 입력해주세요.,,0.0
+19,지식답변,토트넘의 홈구장 이름이 뭐야?,필수단어=스타디움,O,,gpt_fallback,토트넘의 홈구장 이름은 토트넘 홋스퍼 스타디움입니다.,,1.5
+20,지식답변,프리미어리그에서 승점은 어떻게 계산해?,필수단어=승점,O,,gpt_fallback,"프리미어리그에서 승점은 다음과 같이 계산됩니다:
+
+- 승리: 3점
+- 무승부: 1점
+- 패배: 0점
+
+즉, 팀이 경기를 이기면 3점을 얻고, 비기면 1점을, 지면 점수를 얻지 않습니다.",,1.8

@@ -1,0 +1,4 @@
+# 데이터 수집용 (내 PC에서만 설치): pip install -r requirements-collect.txt
+-r requirements.txt
+soccerdata>=1.9.0
+requests>=2.31.0

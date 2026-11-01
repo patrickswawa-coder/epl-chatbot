@@ -1,0 +1,147 @@
+﻿no,분류,질문,정답/기대,결과,오류코드,답변출처,답변,SQL,초
+1,득점,손흥민이 넣은 골의 개수는?,정답=127,O,,db,질문하신 선수의 득점은 127골입니다.,"SELECT COUNT(*) AS goal_count
+FROM match_events
+WHERE player LIKE '%Heung-Min%'
+  AND event_type = 'goal'",4.3
+2,득점,해리 케인은 EPL에서 몇 골을 넣었어?,정답=210,O,,db,질문하신 선수의 득점은 210골입니다.,"SELECT COUNT(*) AS goal_count
+FROM match_events
+WHERE player = 'Harry Kane'
+  AND event_type = 'goal'",3.1
+3,득점,모하메드 살라의 통산 골 수를 알려줘,정답=191,O,,db,"질문하신 선수의 득점은 191골입니다.
+
+※ 데이터베이스에 수록된 2014-15 시즌 이후 기록 기준입니다.","SELECT COUNT(*) AS goal_count
+FROM match_events
+WHERE player LIKE '%Salah%'
+  AND event_type = 'goal'",3.5
+4,득점,엘링 홀란드의 EPL 득점 수는?,정답=112,O,,db,질문하신 선수의 득점은 112골입니다.,"SELECT COUNT(*) AS goal_count
+FROM match_events
+WHERE player LIKE '%Haaland%'
+  AND event_type = 'goal'",2.9
+5,어시스트,손흥민의 어시스트 개수는?,정답=71,O,,db,어시스트 기록은 71회입니다.,"SELECT COUNT(*) AS assist_count
+FROM match_events
+WHERE assist_player LIKE '%Heung-Min%'
+  AND event_type = 'goal'",3.4
+6,어시스트,케빈 데브라위너의 어시스트는 몇 개야?,정답=118,O,,db,어시스트 기록은 118회입니다.,"SELECT COUNT(*) AS assist_count
+FROM match_events
+WHERE assist_player = 'Kevin De Bruyne'",3.0
+7,별명,쏘니 골 몇 개야?,정답=127,O,,db,질문하신 선수의 득점은 127골입니다.,"SELECT COUNT(*) AS goal_count
+FROM match_events
+WHERE player LIKE '%Heung-Min%'
+  AND event_type = 'goal'",3.1
+8,별명,덕배 어시스트 몇 개야?,정답=118,O,,db,어시스트 기록은 118회입니다.,"SELECT COUNT(*) AS assist_count
+FROM match_events
+WHERE assist_player = 'Kevin De Bruyne'",3.1
+9,별명,홀란 골 몇 개야?,정답=112,O,,db,질문하신 선수의 득점은 112골입니다.,"SELECT COUNT(*) AS goal_count
+FROM match_events
+WHERE player LIKE '%Haaland%'
+  AND event_type = 'goal'",3.4
+10,별명,브루노 페르난데스 골 수는?,정답=71,O,,db,질문하신 선수의 득점은 71골입니다.,"SELECT COUNT(*) AS goal_count
+FROM match_events
+WHERE player = 'Bruno Fernandes'
+  AND event_type = 'goal'",3.2
+11,별명,살라 어시스트는 몇 개?,정답=90,O,,db,어시스트 기록은 90회입니다.,"SELECT COUNT(*) AS assist_count
+FROM match_events
+WHERE assist_player = 'Mohamed Salah'",3.0
+12,별명,사카가 넣은 골은 총 몇 개야?,정답=60,O,,db,질문하신 선수의 득점은 60골입니다.,"SELECT COUNT(*) AS goal_count
+FROM match_events
+WHERE player = 'Bukayo Saka'
+  AND event_type = 'goal'",3.0
+13,시즌,2017-18 시즌 모하메드 살라는 몇 골 넣었어?,정답=32,O,,db,질문하신 선수의 득점은 32골입니다.,"SELECT COUNT(*) AS goal_count
+FROM match_events
+WHERE player LIKE '%Salah%'
+  AND event_type = 'goal'
+  AND match_id IN (
+      SELECT match_id
+      FROM matches
+      WHERE season = '1718'
+  )",3.5
+14,시즌,2015-16 시즌 해리 케인의 골 수는?,정답=25,O,,db,질문하신 선수의 득점은 25골입니다.,"SELECT COUNT(*) AS goal_count
+FROM match_events
+WHERE player = 'Harry Kane'
+  AND event_type = 'goal'
+  AND match_id IN (
+      SELECT match_id
+      FROM matches
+      WHERE season = '1516'
+  )",3.5
+15,시즌,2022-23 시즌 엘링 홀란드는 몇 골이야?,정답=36,O,,db,질문하신 선수의 득점은 36골입니다.,"SELECT COUNT(*) AS goal_count
+FROM match_events
+WHERE player LIKE '%Haaland%'
+  AND event_type = 'goal'
+  AND match_id IN (
+      SELECT match_id
+      FROM matches
+      WHERE season = '2223'
+  )",3.8
+16,시즌,2019-20 시즌 손흥민 골 수는?,정답=11,O,,db,질문하신 선수의 득점은 11골입니다.,"SELECT COUNT(*) AS goal_count
+FROM match_events
+WHERE player = 'Son Heung-Min'
+  AND event_type = 'goal'
+  AND match_id IN (
+      SELECT match_id
+      FROM matches
+      WHERE season = '1920'
+  )",3.8
+17,순위,EPL 통산 득점 1위 선수는 누구야?,정답=Harry Kane/210,O,,db,"EPL 통산 득점 1위 선수는 해리 케인으로, 총 210골을 기록했습니다.
+
+※ 데이터베이스에 수록된 2014-15 시즌 이후 기록 기준입니다.","SELECT player, COUNT(*) AS goal_count
+FROM match_events
+WHERE event_type = 'goal'
+  AND player IS NOT NULL
+GROUP BY player
+ORDER BY goal_count DESC
+LIMIT 1",5.0
+18,순위,2022-23 시즌 득점왕은 누구야?,정답=Erling Haaland/36,O,,db,"2022-23 시즌 득점왕은 엘링 홀란으로, 총 36골을 기록했습니다.","SELECT player, COUNT(*) AS goal_count
+FROM match_events
+WHERE event_type = 'goal'
+  AND match_id IN (
+      SELECT match_id
+      FROM matches
+      WHERE season = '2223'
+  )
+  AND player IS NOT NULL
+GROUP BY player
+ORDER BY goal_count DESC
+LIMIT 1",4.7
+19,순위,2017-18 시즌 가장 많은 골을 넣은 선수는?,정답=Mohamed Salah/32,O,,db,"2017-18 시즌 가장 많은 골을 넣은 선수는 모하메드 살라로, 총 32골을 기록했습니다.","SELECT player, COUNT(*) AS goal_count
+FROM match_events
+WHERE event_type = 'goal'
+  AND match_id IN (
+      SELECT match_id
+      FROM matches
+      WHERE season = '1718'
+  )
+  AND player IS NOT NULL
+GROUP BY player
+ORDER BY goal_count DESC
+LIMIT 1",4.2
+20,순위,통산 어시스트가 가장 많은 선수는?,정답=Kevin De Bruyne/118,O,,db,"통산 어시스트가 가장 많은 선수는 케빈 더 브라위너로, 총 118회의 어시스트를 기록했습니다.
+
+※ 데이터베이스에 수록된 2014-15 시즌 이후 기록 기준입니다.","SELECT assist_player, COUNT(*) AS assist_count
+FROM match_events
+WHERE event_type = 'goal' AND assist_player IS NOT NULL
+GROUP BY assist_player
+ORDER BY assist_count DESC
+LIMIT 1",4.2
+21,경기,2014-15 시즌 EPL은 총 몇 경기야?,정답=380,O,,db,합계는 380입니다.,"SELECT COUNT(*) AS total_matches
+FROM matches
+WHERE season = '1415'",2.9
+22,경기,2022-23 시즌 맨체스터 시티 홈 경기에서 몇 번 이겼어?,정답=17,O,,db,win_count: 17,"SELECT COUNT(*) AS win_count
+FROM matches
+WHERE home_team = 'Manchester City'
+  AND season = '2223'
+  AND home_score > away_score",3.2
+23,경기,맨유와 맨시티의 2018-19 시즌 맞대결 경기는 몇 번 있었어?,정답=2,O,,db,조건에 해당하는 경기는 2경기입니다.,"SELECT COUNT(*) AS match_count
+FROM matches
+WHERE ((home_team LIKE '%Manchester United%' AND away_team LIKE '%Manchester City%') 
+       OR (home_team LIKE '%Manchester City%' AND away_team LIKE '%Manchester United%'))
+  AND season = '1819'",3.5
+24,경기,2016-17 시즌 토트넘이 무승부한 경기는 몇 번이야?,정답=8,O,,db,draw_count: 8,"SELECT COUNT(*) AS draw_count
+FROM matches
+WHERE season = '1617' AND home_score = away_score AND (home_team LIKE '%Tottenham%' OR away_team LIKE '%Tottenham%')",4.0
+25,오류처리,ㅁㄴㅇㄹㅁㄴㅇㄹ,기대=E01,O,E01,,[E01] 입력이 올바르지 않습니다. 비어 있지 않은 질문을 200자 이내로 입력해주세요.,,0.0
+26,오류처리,오늘 점심 뭐 먹지?,기대=E02,O,E02,,[E02] 지원 범위 밖의 질문입니다. EPL 경기·득점·어시스트 기록에 관한 질문을 해주세요.,,0.9
+27,오류처리,비트코인 가격 알려줘,기대=E02,O,E02,,[E02] 지원 범위 밖의 질문입니다. EPL 경기·득점·어시스트 기록에 관한 질문을 해주세요.,,1.0
+28,지식답변,덕베가 누구야?,필수단어=데브라위너,O,,gpt_fallback,"케빈 데브라위너(덕베)는 벨기에 출신의 프로 축구 선수로, 주로 미드필더로 활약하고 있습니다. 제가 아는 시점 기준으로 그는 맨체스터시티 소속이며, 뛰어난 패스 능력과 창의적인 플레이로 잘 알려져 있습니다.",,1.8
+29,지식답변,오프사이드 규칙을 간단히 설명해줘,필수단어=오프사이드,O,,gpt_fallback,"오프사이드 규칙은 공격자가 공을 받을 때, 상대 팀의 마지막 수비수(골키퍼 제외)보다 앞에 위치해 있으면 반칙으로 간주하는 규칙입니다. 즉, 공격자가 공을 받을 때 상대 수비수보다 더 가까운 위치에 있으면 오프사이드가 선언됩니다. 다만, 공이 패스될 때 공격자가 공을 차는 선수와 같은 선상에 있거나 그 뒤에 있다면 오프사이드가 아닙니다.",,2.0
+30,지식답변,쏘니가 누구야?,필수단어=손흥민,O,,gpt_fallback,"손흥민은 대한민국의 프로 축구 선수로, 현재 토트넘 홋스퍼에서 공격수로 활약하고 있습니다. 그는 빠른 스피드와 뛰어난 드리블 능력, 그리고 골 결정력이 뛰어난 선수로 알려져 있습니다. 손흥민은 한국 국가대표팀에서도 중요한 역할을 하고 있으며, 많은 팬들에게 사랑받고 있습니다.",,1.8

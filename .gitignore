@@ -1,0 +1,21 @@
+# 비밀 정보: 절대 올리지 않기
+.env
+.streamlit/secrets.toml
+
+# 환경·캐시
+.venv/
+__pycache__/
+*.pyc
+soccerdata/
+
+# 실행 중 생기는 파일
+app_log.db
+data_collection/auto_collect_state.json
+
+# 백업·임시 파일
+*.bak
+*.orig
+text_to_sql.step*.py
+football_history_backup_*.db
+
+# 주의: football_history.db 는 일부러 올립니다 (Streamlit Cloud가 읽어야 함)
