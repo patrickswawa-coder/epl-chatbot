@@ -11,15 +11,14 @@ from dotenv import load_dotenv
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from query_logger import error_counts, read_logs  # noqa: E402
+from theme import apply_theme  # noqa: E402
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 st.set_page_config(page_title="관리자 · 처리 기록", page_icon="🛠️", layout="wide")
-st.markdown(
-    "<style>[data-testid='stSidebarNav']{display:none}</style>", unsafe_allow_html=True
-)
-st.page_link("app.py", label="챗봇으로 돌아가기", icon="⚽")
-st.title("🛠️ 관리자 · 처리 기록")
+apply_theme()
+st.page_link("app.py", label="챗봇으로 돌아가기")
+st.title("관리자 · 처리 기록")
 
 
 def _same(a: str, b: str) -> bool:

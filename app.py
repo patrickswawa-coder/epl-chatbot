@@ -22,6 +22,7 @@ import pandas as pd
 import streamlit as st
 
 import time
+import re
 import uuid
 
 from error_codes import error_message
@@ -38,7 +39,7 @@ st.set_page_config(
     page_title="EPL 데이터 챗봇",
     page_icon="⚽",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -46,301 +47,12 @@ DB_PATH = BASE_DIR / "football_history.db"
 
 
 # =========================================================
-# CSS - 공모전 발표용 UI
+# 화면 디자인 (theme.py: 밤 경기장 스코어보드 스타일)
 # =========================================================
 
-st.markdown(
-    """
-    <style>
-    /* 전체 배경 */
-    .stApp {
-        background:
-            radial-gradient(circle at 10% 10%, rgba(255,255,255,0.10), transparent 25%),
-            linear-gradient(135deg, #0b3d2e 0%, #116149 45%, #0a2f24 100%);
-    }
+from theme import apply_theme  # noqa: E402
 
-    /* 상단 여백 */
-    .block-container {
-        max-width: 1180px;
-        padding-top: 2rem;
-        padding-bottom: 3rem;
-    }
-
-    /* 메인 히어로 */
-    .hero {
-        position: relative;
-        overflow: hidden;
-        padding: 2.2rem 2rem;
-        margin-bottom: 1.2rem;
-        border-radius: 24px;
-        background: linear-gradient(135deg, rgba(0,0,0,0.28), rgba(255,255,255,0.08));
-        border: 1px solid rgba(255,255,255,0.18);
-        box-shadow: 0 14px 40px rgba(0,0,0,0.20);
-    }
-
-    .hero::after {
-        content: "⚽";
-        position: absolute;
-        right: 35px;
-        top: 12px;
-        font-size: 6rem;
-        opacity: 0.10;
-        transform: rotate(-12deg);
-    }
-
-    .hero-title {
-        position: relative;
-        z-index: 2;
-        margin: 0;
-        color: #ffffff;
-        font-size: 2.45rem;
-        font-weight: 800;
-        letter-spacing: -0.04em;
-    }
-
-    .hero-subtitle {
-        position: relative;
-        z-index: 2;
-        margin: 0.55rem 0 0;
-        color: #d9f4e9;
-        font-size: 1.05rem;
-        line-height: 1.6;
-    }
-
-    /* 소개 카드 */
-    .info-card {
-        background: rgba(255,255,255,0.96);
-        border-radius: 18px;
-        padding: 1rem 1.2rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-    }
-
-    .info-title {
-        color: #0b3d2e;
-        font-weight: 800;
-        font-size: 1rem;
-        margin-bottom: 0.35rem;
-    }
-
-    .info-text {
-        color: #46534f;
-        line-height: 1.55;
-        font-size: 0.92rem;
-    }
-
-    /* 채팅 메시지 */
-    [data-testid="stChatMessage"] {
-        background: rgba(255,255,255,0.97) !important;
-        border-radius: 16px;
-        padding: 0.85rem 1rem;
-        margin-bottom: 0.7rem;
-        box-shadow: 0 5px 18px rgba(0,0,0,0.10);
-        border: 1px solid rgba(0,0,0,0.05);
-    }
-
-    [data-testid="stChatMessageContent"] {
-        color: #1d2622 !important;
-        overflow: visible !important;
-        max-height: none !important;
-    }
-
-    [data-testid="stChatMessage"] p,
-    [data-testid="stChatMessage"] li,
-    [data-testid="stChatMessage"] span,
-    [data-testid="stChatMessage"] div {
-        color: #1d2622 !important;
-    }
-
-    [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
-        border-left: 5px solid #d94b4b;
-    }
-
-    [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-assistant"]) {
-        border-left: 5px solid #f0c34a;
-    }
-
-    /* 입력창 */
-    [data-testid="stChatInput"] textarea {
-        background: #ffffff !important;
-        color: #17211d !important;
-        border: 2px solid rgba(255,255,255,0.65) !important;
-        border-radius: 14px !important;
-    }
-
-    [data-testid="stChatInput"] textarea::placeholder {
-        color: #6b756f !important;
-    }
-
-    /* 추천 질문 버튼 */
-    .stButton > button {
-        width: 100%;
-        min-height: 44px;
-        border-radius: 12px;
-        border: 1px solid #d8e3de !important;
-        background: #ffffff !important;
-        color: #17352b !important;
-        font-weight: 700;
-        box-shadow: 0 2px 7px rgba(0,0,0,0.06);
-        transition: all 0.15s ease;
-    }
-
-    .stButton > button:hover {
-        background: #e9f6ef !important;
-        color: #0b5d3f !important;
-        border-color: #7fc6a5 !important;
-        box-shadow: 0 4px 12px rgba(11,93,63,0.12);
-    }
-
-    .stButton > button:focus,
-    .stButton > button:focus-visible,
-    .stButton > button:active {
-        background: #e9f6ef !important;
-        color: #0b5d3f !important;
-        border-color: #63ad8b !important;
-        box-shadow: 0 0 0 2px rgba(99,173,139,0.20) !important;
-    }
-
-    .stButton > button p,
-    .stButton > button span,
-    .stButton > button div {
-        color: inherit !important;
-    }
-
-    /* 사이드바 */
-    [data-testid="stSidebar"] {
-        background: #f5f7f6;
-    }
-
-    [data-testid="stSidebar"] * {
-        color: #17211d;
-    }
-
-    /* expander */
-    [data-testid="stExpander"] {
-        background: rgba(255,255,255,0.96);
-        border-radius: 12px;
-        border: 1px solid rgba(0,0,0,0.08);
-    }
-
-    /* expander 헤더(접혀있을 때 보이는 막대) - 기본 다크 테마 배경을 덮어씀 */
-    [data-testid="stExpander"] summary,
-    [data-testid="stExpander"] summary:hover,
-    [data-testid="stExpander"] details > summary {
-        background: #ffffff !important;
-        color: #17352b !important;
-        border-radius: 12px;
-    }
-
-    [data-testid="stExpander"] summary * {
-        color: #17352b !important;
-        fill: #17352b !important;
-    }
-
-    /* 밝은 조회 결과 표 */
-    .result-table-wrap {
-        width: 100%;
-        overflow-x: auto;
-        margin: 0.25rem 0 0.8rem;
-        border: 1px solid #dfe7e3;
-        border-radius: 12px;
-        background: #ffffff;
-        box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-    }
-
-    .result-table {
-        width: 100%;
-        border-collapse: collapse;
-        background: #ffffff;
-        color: #1d2622;
-        font-size: 0.90rem;
-    }
-
-    .result-table th {
-        background: #eef5f1;
-        color: #17352b;
-        font-weight: 800;
-        text-align: left;
-        padding: 0.75rem 0.65rem;
-        border-bottom: 2px solid #d7e3dd;
-        white-space: nowrap;
-    }
-
-    .result-table td {
-        color: #29332f;
-        padding: 0.68rem 0.65rem;
-        border-bottom: 1px solid #e7ece9;
-        background: #ffffff;
-        white-space: nowrap;
-    }
-
-    .result-table tbody tr:nth-child(even) td {
-        background: #f8faf9;
-    }
-
-    .result-table tbody tr:hover td {
-        background: #eef8f2;
-    }
-
-    /* [교체됨] 생성된 SQL 표시용 커스텀 박스 (st.code 대신 사용)
-       - st.code()는 최신 Streamlit에서 내부 렌더링 구조상 CSS로 배경/글자색을
-         덮어쓸 수 없는 경우가 있어, 결과 표(result-table)와 동일한 방식으로
-         직접 HTML/CSS를 만들어 사용합니다. */
-    .sql-block-wrap {
-        width: 100%;
-        overflow-x: auto;
-        margin: 0.25rem 0 0.8rem;
-        border: 1px solid #dfe7e3;
-        border-radius: 12px;
-        background: #ffffff;
-        box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-    }
-
-    .sql-block {
-        margin: 0;
-        padding: 0.9rem 1rem;
-        background: #ffffff;
-        color: #1d2622;
-        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-        font-size: 0.88rem;
-        line-height: 1.55;
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
-
-    /* [NEW] 답변 뒤에 붙는 추가 인사이트 박스 */
-    .insight-box {
-        margin: 0.5rem 0 0.2rem;
-        padding: 0.65rem 0.95rem;
-        background: #fff8e1;
-        border-left: 4px solid #f0c34a;
-        border-radius: 10px;
-        color: #5c4a12;
-        font-size: 0.88rem;
-        line-height: 1.55;
-    }
-
-    /* [NEW] DB로 확인되지 않은 GPT 지식 기반 답변 경고 배지 */
-    .fallback-badge {
-        margin: 0 0 0.6rem;
-        padding: 0.6rem 0.95rem;
-        background: #fdecea;
-        border-left: 4px solid #e05252;
-        border-radius: 10px;
-        color: #7a2020;
-        font-size: 0.85rem;
-        line-height: 1.5;
-    }
-
-    /* 작은 안내 문구 */
-    .muted {
-        color: #d9f4e9;
-        font-size: 0.82rem;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+apply_theme()
 
 
 # =========================================================
@@ -405,13 +117,45 @@ def render_sql_block(sql: str) -> None:
     )
 
 
+def render_scoreboard(result: dict, answer_text: str | None) -> None:
+    """결과가 숫자 하나(1행 1열)일 때 답변 위에 큰 숫자 스코어보드를 보여준다."""
+    if not result or result.get("answer_source") == "gpt_fallback":
+        return
+    rows, cols = result.get("rows") or [], result.get("columns") or []
+    if len(rows) != 1 or len(cols) != 1:
+        return
+    value = rows[0][0]
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return
+    shown = f"{int(value):,}" if float(value).is_integer() else f"{value:,.2f}"
+    unit = ""
+    if answer_text:
+        m = re.search(
+            re.escape(shown) + r"\s*(골|경기|개|번|회|승|패|무|명|점|분|시즌|도움|어시스트|장)",
+            answer_text,
+        ) or re.search(
+            re.escape(str(int(value))) + r"\s*(골|경기|개|번|회|승|패|무|명|점|분|시즌|도움|어시스트|장)",
+            answer_text,
+        )
+        if m:
+            unit = m.group(1)
+        elif shown not in answer_text and str(int(value)) not in answer_text:
+            return  # 답변 문장에 없는 숫자는 크게 보여주지 않는다
+    st.markdown(
+        '<div class="score-label">ANSWER · FROM DATABASE</div>'
+        f'<div class="score-row"><span class="score-num">{escape(shown)}</span>'
+        f'<span class="score-unit">{escape(unit)}</span></div>',
+        unsafe_allow_html=True,
+    )
+
+
 def render_insight(insight: str | None) -> None:
     """[NEW] 답변 뒤에 붙는 추가 인사이트 한 줄을 밝은 강조 박스로 표시한다."""
     if not insight:
         return
 
     st.markdown(
-        f'<div class="insight-box">💡 {escape(insight)}</div>',
+        f'<div class="insight-box">{escape(insight)}</div>',
         unsafe_allow_html=True,
     )
 
@@ -426,7 +170,7 @@ def render_fallback_badge(answer_source: str | None) -> None:
         return
 
     st.markdown(
-        '<div class="fallback-badge">⚠️ 이 답변은 데이터베이스로 확인되지 '
+        '<div class="fallback-badge">이 답변은 데이터베이스로 확인되지 '
         '않았습니다. GPT의 일반 지식을 기반으로 한 답변이라 부정확할 수 '
         '있으니 참고용으로만 활용해주세요.</div>',
         unsafe_allow_html=True,
@@ -502,9 +246,11 @@ if "followup_questions" not in st.session_state:
 # =========================================================
 
 with st.sidebar:
-    st.markdown("## ⚽ EPL Chatbot")
-
-    st.divider()
+    st.markdown(
+        '<div class="brand-kicker">PREMIER LEAGUE DATA</div>'
+        '<div class="brand-name">EPL 챗봇</div>',
+        unsafe_allow_html=True,
+    )
 
     example_questions = [
         "손흥민이 넣은 골의 개수는?",
@@ -517,57 +263,44 @@ with st.sidebar:
     # [NEW] 대화가 시작되면 고정 예시 대신, 방금 나눈 대화를 기반으로
     # GPT가 만든 후속 질문을 보여준다. 대화 시작 전에는 기존 고정 예시를 그대로 사용.
     if st.session_state.followup_questions:
-        st.markdown("### 🔄 이어서 물어보면 좋은 질문")
-        st.caption("방금 대화를 기반으로 추천해드려요")
+        st.markdown('<div class="side-label">NEXT · 이어서 물어보기</div>', unsafe_allow_html=True)
 
         for i, followup in enumerate(st.session_state.followup_questions):
-            if st.button(followup, use_container_width=True, key=f"followup_{i}"):
+            if st.button(f"{i + 1:02d}   {followup}", use_container_width=True, key=f"followup_{i}"):
                 st.session_state.pending_question = followup
     else:
-        st.markdown("### 💡 추천 질문")
+        st.markdown('<div class="side-label">TRY ASKING · 추천 질문</div>', unsafe_allow_html=True)
 
         for i, example in enumerate(example_questions):
-            if st.button(example, use_container_width=True, key=f"example_{i}"):
+            if st.button(f"{i + 1:02d}   {example}", use_container_width=True, key=f"example_{i}"):
                 st.session_state.pending_question = example
-
-    st.divider()
 
     stats = get_db_stats()
 
-    st.markdown("### 📊 데이터 현황")
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.metric("경기", f"{stats['matches']:,}")
-    with col2:
-        st.metric("이벤트", f"{stats['events']:,}")
-
-    st.metric("시즌", f"{stats['seasons']:,}")
-
-    st.divider()
-
-    st.markdown("### 🔎 제공 기능")
     st.markdown(
-        """
-        - 자연어 → SQL 변환
-        - EPL 경기 데이터 조회
-        - 득점 / 어시스트 / 카드 분석
-        - 조회 결과 표와 차트
-        - 이전 대화를 활용한 후속 질문
-        """
+        '<div class="side-label">DATABASE · 데이터 현황</div>'
+        '<div class="stat-grid">'
+        f'<div class="stat-cell"><div class="stat-num">{stats["matches"]:,}</div><div class="stat-name">경기</div></div>'
+        f'<div class="stat-cell"><div class="stat-num">{stats["events"]:,}</div><div class="stat-name">이벤트</div></div>'
+        f'<div class="stat-cell"><div class="stat-num">{stats["seasons"]:,}</div><div class="stat-name">시즌</div></div>'
+        '</div>'
+        '<div class="side-note">프리미어리그 · 2014-15 시즌부터</div>',
+        unsafe_allow_html=True,
     )
 
-    st.divider()
-
-    if st.button("🗑️ 대화 내용 초기화", use_container_width=True):
+    if st.button("대화 초기화", use_container_width=True, key="reset_btn"):
         st.session_state.messages = []
         st.session_state.last_result = None
         st.session_state.followup_questions = []
         st.rerun()
 
-    st.page_link("pages/admin.py", label="관리자 화면", icon="🛠️", use_container_width=True)
+    st.page_link("pages/admin.py", label="관리자 화면", use_container_width=True)
 
-    st.caption("※ 답변은 연결된 EPL 데이터베이스를 기준으로 생성됩니다.")
+    st.markdown(
+        '<div class="side-note" style="margin-top:.8rem">'
+        '답변은 연결된 EPL 데이터베이스를 기준으로 생성됩니다.</div>',
+        unsafe_allow_html=True,
+    )
 
 
 # =========================================================
@@ -577,7 +310,8 @@ with st.sidebar:
 st.markdown(
     """
     <div class="hero">
-        <p class="hero-title">⚽ EPL 데이터 챗봇</p>
+        <p class="hero-kicker">ASK · QUERY · ANSWER</p>
+        <p class="hero-title">EPL 데이터 챗봇</p>
         <p class="hero-subtitle">
             축구 데이터를 자연어로 질문하면
             <b>GPT가 SQL을 생성하고 SQLite 데이터를 조회</b>하여 답변합니다.
@@ -594,7 +328,7 @@ st.markdown(
 # 사이드바를 열지 않아도 보이는 관리자 버튼을 본문에도 둔다
 _adm_left, _adm_right = st.columns([3, 1])
 with _adm_right:
-    st.page_link("pages/admin.py", label="관리자", icon="🛠️", use_container_width=True)
+    st.page_link("pages/admin.py", label="관리자", use_container_width=True)
 
 
 # =========================================================
@@ -605,7 +339,7 @@ if not st.session_state.messages:
     st.markdown(
         """
         <div class="info-card">
-            <div class="info-title">👋 EPL 데이터를 자유롭게 질문해보세요</div>
+            <div class="info-title">EPL 데이터를 자유롭게 질문해보세요</div>
             <div class="info-text">
                 예를 들어 <b>“손흥민이 넣은 골의 개수는?”</b>처럼
                 평소 사용하는 말로 질문할 수 있습니다.
@@ -617,14 +351,7 @@ if not st.session_state.messages:
     )
 
     st.markdown(
-        """
-        <div style="background:rgba(255,255,255,0.14);
-                    border:1px solid rgba(255,255,255,0.28);
-                    border-radius:14px;padding:16px 22px;
-                    color:#F5F3EA;font-size:16px;">
-            💬 왼쪽의 예시 질문을 클릭하거나 아래 입력창에서 직접 질문해보세요.
-        </div>
-        """,
+        '<div class="hint-line">왼쪽의 예시 질문을 누르거나 아래 입력창에서 직접 질문해보세요.</div>',
         unsafe_allow_html=True,
     )
 
@@ -635,6 +362,8 @@ if not st.session_state.messages:
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
+        if msg.get("result"):
+            render_scoreboard(msg["result"], msg["content"])
         st.markdown(msg["content"])
 
         # 이전 결과가 저장되어 있다면 해당 메시지의 상세 정보 표시
@@ -650,11 +379,11 @@ for msg in st.session_state.messages:
                     columns=result["columns"],
                 )
 
-                with st.expander(f"📋 조회 결과 보기 ({len(df)}행)"):
+                with st.expander(f"조회 결과 보기 ({len(df)}행)"):
                     render_result_table(df)
 
             if result.get("sql"):
-                with st.expander("🔍 생성된 SQL 보기"):
+                with st.expander("생성된 SQL 보기"):
                     render_sql_block(result.get("sql", ""))
 
 
@@ -697,7 +426,7 @@ if question:
 
     # 답변 생성
     with st.chat_message("assistant"):
-        with st.spinner("⚽ EPL 데이터를 분석하고 있습니다..."):
+        with st.spinner("EPL 데이터를 분석하고 있습니다..."):
             _t0 = time.monotonic()
             if not check_and_count(st.session_state.session_id):
                 # [E08] 호출 한도 초과 (분당 5회 / 하루 200회)
@@ -761,7 +490,7 @@ if question:
                 )
 
             if result.get("sql"):
-                with st.expander("🔍 생성된 SQL 확인"):
+                with st.expander("생성된 SQL 확인"):
                     render_sql_block(result["sql"])
 
             # 오류 코드가 있으면 "[E02] ..." 안내문을 기록에도 그대로 남긴다.
@@ -775,6 +504,7 @@ if question:
             assistant_text = result.get("answer") or "조회 결과가 없습니다."
 
             render_fallback_badge(result.get("answer_source"))
+            render_scoreboard(result, assistant_text)
             st.markdown(assistant_text)
 
             render_insight(result.get("insight"))
@@ -786,7 +516,7 @@ if question:
                     columns=result["columns"],
                 )
 
-                with st.expander(f"📋 조회 결과 보기 ({len(df)}행)"):
+                with st.expander(f"조회 결과 보기 ({len(df)}행)"):
                     render_result_table(df)
 
                 # 숫자 + 문자 컬럼이 함께 있을 경우 간단한 차트 표시
@@ -817,7 +547,7 @@ if question:
                             st.bar_chart(chart_df)
 
             # SQL은 기본적으로 접어서 제공
-            with st.expander("🔍 생성된 SQL 보기"):
+            with st.expander("생성된 SQL 보기"):
                 render_sql_block(result.get("sql", ""))
 
             # 데이터가 없을 때 (단, GPT 지식 기반 폴백으로 이미 답변한 경우는 제외)
