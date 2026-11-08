@@ -18,7 +18,6 @@ import os
 import re
 import sqlite3
 import time
-from typing import Any
 
 from dotenv import load_dotenv
 from openai import (
@@ -28,7 +27,14 @@ from openai import (
     RateLimitError,
 )
 
-from database.db_utils import get_connection
+from database.aliases import (
+    expand_for_answer,
+    expand_for_sql,
+    mentioned_kinds,
+    missing_entities,
+    season_codes,
+)
+from database.entity_resolver import format_hint, resolve_entities
 from error_codes import MAX_QUESTION_LENGTH, error_message
 
 
@@ -46,14 +52,6 @@ class LLMError(RuntimeError):
     def __init__(self, message: str, code: str = "E05"):
         super().__init__(message)
         self.code = code
-from database.entity_resolver import format_hint, resolve_entities
-from database.aliases import (
-    expand_for_answer,
-    expand_for_sql,
-    mentioned_kinds,
-    missing_entities,
-    season_codes,
-)
 
 
 # ============================================================
@@ -90,9 +88,10 @@ SCHEMA_DESCRIPTION = """
 - date (TEXT, YYYY-MM-DD)
 - home_team (TEXT)
 - away_team (TEXT)
-- home_score (INTEGER)
-- away_score (INTEGER)
+- home_score (INTEGER, 아직 치르지 않은 예정 경기는 NULL)
+- away_score (INTEGER, 아직 치르지 않은 예정 경기는 NULL)
 - source (TEXT, 'understat' / 'api_football')
+※ matches에는 진행 중인 시즌의 남은 일정(스코어 NULL)도 들어 있습니다.
 
 테이블 2: match_events (경기 내 이벤트)
 - event_id (INTEGER, PK)
@@ -164,8 +163,9 @@ SELECT
     home_score,
     away_score
 FROM matches
-WHERE (home_team LIKE '%Manchester City%' AND away_team LIKE '%Chelsea%')
-   OR (home_team LIKE '%Chelsea%' AND away_team LIKE '%Manchester City%')
+WHERE ((home_team LIKE '%Manchester City%' AND away_team LIKE '%Chelsea%')
+   OR (home_team LIKE '%Chelsea%' AND away_team LIKE '%Manchester City%'))
+  AND home_score IS NOT NULL
 ORDER BY date DESC
 LIMIT 5;
 
@@ -241,6 +241,8 @@ SYSTEM_PROMPT = f"""
 12. 결과가 많을 수 있는 일반 목록/상세 조회는 LIMIT 20을 사용하세요.
     이때 경기 결과·경기 목록은 항상 최신 경기부터 보이도록 ORDER BY date DESC를 사용하세요
     (오래된 경기만 잘려서 보이는 일을 막기 위함).
+12-1. matches에서 경기 결과·경기 목록·경기 수를 조회할 때는 반드시 home_score IS NOT NULL 조건을 넣어
+    아직 치르지 않은 예정 경기를 제외하세요. (사용자가 "일정", "다음 경기", "남은 경기"를 물을 때만 예외)
 13. 단순 COUNT/SUM/AVG/MIN/MAX 집계에는 불필요한 LIMIT을 붙이지 마세요.
 13-1. "이번 시즌", "올 시즌", "최근 시즌" 같은 상대적 표현은 별도 시스템 메시지로 알려 주는
     데이터베이스의 최신 시즌 코드를 기준으로 해석하세요. ("지난 시즌"은 그 바로 이전 시즌입니다.)
@@ -1062,36 +1064,6 @@ FALLBACK_SYSTEM_PROMPT = """
 """ + TEAM_NAME_MAP + PLAYER_NAME_MAP + "\n"
 
 
-# 한글 별명/표기 -> 정식 한글 이름. GPT 지식 답변에서 "덕베"처럼 낯선 별명을
-# GPT가 못 알아보는 문제를 막기 위해, 코드가 질문 속 별명을 정식 이름으로 풀어 준다.
-PLAYER_ALIAS_TO_FULL = {
-    "쏘니": "손흥민",
-    "홀란드": "엘링 홀란드",
-    "홀란": "엘링 홀란드",
-    "모하메드 살라": "모하메드 살라",
-    "살라": "모하메드 살라",
-    "덕배": "케빈 데브라위너",
-    "덕베": "케빈 데브라위너",
-    "데브라위너": "케빈 데브라위너",
-    "더브라위너": "케빈 데브라위너",
-    "부카요 사카": "부카요 사카",
-    "사카": "부카요 사카",
-    "필 포든": "필 포든",
-    "포든": "필 포든",
-    "마르틴 외데고르": "마르틴 외데고르",
-    "외데고르": "마르틴 외데고르",
-}
-
-
-def _expand_aliases(text: str) -> str:
-    """질문 속 별명을 '정식이름(별명)' 형태로 풀어 줍니다. 예: 덕베 -> 케빈 데브라위너(덕베)"""
-    for alias in sorted(PLAYER_ALIAS_TO_FULL, key=len, reverse=True):
-        full = PLAYER_ALIAS_TO_FULL[alias]
-        if alias in text and full not in text:
-            text = text.replace(alias, f"{full}({alias})", 1)
-    return text
-
-
 def generate_gpt_fallback_answer(
     question: str,
     history: list[dict] | None = None,
@@ -1242,7 +1214,36 @@ def check_sql_semantics(question: str, sql: str) -> str | None:
     # 두 선수를 비교하는 질문인데 한 명만 반환하는 SQL
     if len(kinds["player"]) >= 2 and re.search(r"limit\s+1\b", low):
         return "두 선수를 비교하는 질문입니다. LIMIT 1을 쓰지 말고 모두의 값을 반환하세요."
+
+    if _includes_unplayed_matches(q, low):
+        return ("matches에는 아직 치르지 않은 예정 경기(스코어 NULL)가 있습니다. "
+                "home_score IS NOT NULL 조건을 넣어 치른 경기만 조회하세요.")
     return None
+
+
+SCHEDULE_RE = re.compile(r"일정|다음 ?경기|예정|남은 ?경기|앞으로")
+
+
+def _includes_unplayed_matches(question: str, low: str) -> bool:
+    """경기 목록·경기 수를 matches에서 직접 조회하면서 예정 경기(스코어 NULL)를 거르지 않았는지 확인한다."""
+    if SCHEDULE_RE.search(question):
+        return False
+    # 'match_id IN (SELECT match_id FROM matches ...)' 같은 하위 조회는 이벤트 기준이라 문제없다
+    main = re.sub(r"select\s+match_id\s+from\s+matches\b", "", low)
+    if not re.search(r"\bfrom\s+matches\b", main):
+        return False
+    # 스코어 조건(IS NOT NULL, 비교)이 있으면 NULL 경기는 이미 빠진다
+    if re.search(r"(home|away)_score\s*(is\s+not\s+null|[<>=])", low):
+        return False
+    # SUM/AVG는 NULL을 무시하므로 괜찮다. 목록(날짜 정렬·match_label)이나 COUNT만 문제
+    if not re.search(r"count\s*\(|order\s+by\s+date|match_label|\bdate\b", main):
+        return False
+    # 지난 시즌만 조회하면 예정 경기가 없다
+    seasons = set(re.findall(r"season\s*=\s*'(\d{4})'", low))
+    latest = latest_season_code()
+    if seasons and latest and latest not in seasons:
+        return False
+    return True
 
 
 def _build_repair_prompt(question: str, sql: str, exc: Exception | None) -> str:

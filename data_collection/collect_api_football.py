@@ -29,7 +29,8 @@ HEADERS = {
 }
 
 EPL_LEAGUE_ID = 39      # API-Football 내부 EPL 리그 ID
-SEASON = 2024           # 2024-2025 시즌
+SEASON = int(os.getenv("API_FOOTBALL_SEASON", "2024"))  # 시즌 시작 연도 (2024 = 2024-2025 시즌)
+SEASON_CODE = f"{SEASON % 100:02d}{(SEASON + 1) % 100:02d}"  # DB 시즌 코드 형식 (예: '2425')
 MAX_REQUESTS_PER_RUN = 90  # 무료 한도(100) 대비 여유를 둔 안전 마진
 
 
@@ -80,7 +81,7 @@ def save_match(fixture: dict):
         """,
         (
             match_id,
-            f"{SEASON}-{SEASON+1}",
+            SEASON_CODE,
             fixture["fixture"]["date"][:10],
             fixture["teams"]["home"]["name"],
             fixture["teams"]["away"]["name"],

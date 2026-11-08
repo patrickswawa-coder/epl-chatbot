@@ -90,4 +90,12 @@ if __name__ == "__main__":
     schedule, shots = collect_season(season)
     n_matches, n_goals = upsert_season(schedule, shots, season)
     print(f"✅ {season} 시즌 반영 완료 (경기 {n_matches}개, 골 {n_goals}개)")
+
+    # 새로 등장한 선수·팀 이름을 임베딩 캐시에 추가한다 (이미 있는 이름은 건너뛰어 비용이 거의 없다)
+    try:
+        from database.build_entity_embeddings import main as build_embeddings
+
+        build_embeddings()
+    except (Exception, SystemExit) as exc:
+        print(f"⚠️ 이름 임베딩 갱신을 건너뜁니다: {exc}")
     print("챗봇은 다시 실행하지 않아도 다음 질문부터 새 데이터를 사용합니다.")

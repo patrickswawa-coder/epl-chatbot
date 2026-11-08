@@ -1,11 +1,11 @@
 -- 경기 기본 정보 (스코어, 팀, 날짜)
 CREATE TABLE IF NOT EXISTS matches (
     match_id        TEXT PRIMARY KEY,   -- 소스별 고유 ID (예: understat_12345)
-    season          TEXT,               -- 예: "2024-2025"
+    season          TEXT,               -- 시즌 코드 4자리, 예: 2024-2025 시즌 -> "2425"
     date            TEXT,               -- YYYY-MM-DD
     home_team       TEXT,
     away_team       TEXT,
-    home_score      INTEGER,
+    home_score      INTEGER,            -- 아직 치르지 않은 예정 경기는 NULL
     away_score      INTEGER,
     source          TEXT                -- "understat" / "api_football"
 );

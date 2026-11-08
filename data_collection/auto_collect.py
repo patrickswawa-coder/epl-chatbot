@@ -49,11 +49,10 @@ BASE_URL = "https://v3.football.api-sports.io"
 
 LEAGUE_ID = 39  # EPL
 
-# 현재 시즌 자동 선택
-# EPL은 일반적으로 8월부터 다음 해 5~6월까지 진행됨
-
-# 무료 API 요금제에서 접근 가능한 시즌으로 테스트
-SEASON = 2024
+# 시즌 시작 연도. .env의 API_FOOTBALL_SEASON으로 바꿀 수 있다 (기본 2024: 무료 요금제에서 접근 가능한 시즌)
+SEASON = int(os.getenv("API_FOOTBALL_SEASON", "2024"))
+# DB의 시즌 코드 형식 (예: 2024 -> '2425'). Understat 데이터와 같은 형식이어야 시즌 검색에 잡힌다
+SEASON_CODE = f"{SEASON % 100:02d}{(SEASON + 1) % 100:02d}"
 
 
 # 한 번 실행할 때 이벤트 조회에 사용할 최대 요청 수
@@ -242,7 +241,7 @@ def save_finished_fixture(fixture, events):
     fixture_id = fixture_info["id"]
     match_id = f"apifootball_{fixture_id}"
 
-    season_text = f"{SEASON}-{SEASON + 1}"
+    season_text = SEASON_CODE
     match_date = fixture_info["date"][:10]
 
     conn = get_connection()

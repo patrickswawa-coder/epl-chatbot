@@ -207,7 +207,8 @@ def get_db_stats() -> dict:
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
 
-        cur.execute("SELECT COUNT(*) FROM matches")
+        # 아직 치르지 않은 예정 경기(스코어 NULL)는 세지 않는다
+        cur.execute("SELECT COUNT(*) FROM matches WHERE home_score IS NOT NULL")
         stats["matches"] = cur.fetchone()[0]
 
         cur.execute("SELECT COUNT(*) FROM match_events")
@@ -215,7 +216,7 @@ def get_db_stats() -> dict:
 
         cur.execute(
             "SELECT COUNT(DISTINCT season) FROM matches "
-            "WHERE season IS NOT NULL AND season != ''"
+            "WHERE season IS NOT NULL AND season != '' AND home_score IS NOT NULL"
         )
         stats["seasons"] = cur.fetchone()[0]
 
@@ -243,9 +244,6 @@ st.markdown(
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
-
-if "last_result" not in st.session_state:
-    st.session_state.last_result = None
 
 if "followup_questions" not in st.session_state:
     st.session_state.followup_questions = []
@@ -305,7 +303,6 @@ with st.sidebar:
 
     if st.button("대화 초기화", use_container_width=True, key="reset_btn"):
         st.session_state.messages = []
-        st.session_state.last_result = None
         st.session_state.followup_questions = []
         st.rerun()
 
@@ -585,8 +582,6 @@ if question:
                 "result": result,
             }
         )
-
-        st.session_state.last_result = result
 
         # [NEW] 방금 결과에서 나온 후속 질문 추천을 사이드바에 반영
         # (실패했거나 없으면 빈 리스트 -> 다음 렌더링부터는 다시 고정 예시로 복귀)

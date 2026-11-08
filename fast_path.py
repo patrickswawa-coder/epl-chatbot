@@ -324,7 +324,7 @@ def _h2h(question: str, teams: list[tuple[str, str, str]]) -> dict | None:
     res["columns"] = ["날짜", "홈팀", "원정팀", "홈 득점", "원정 득점"]
     res["rows"] = [(r[0][:10], name(r[1]), name(r[2]), r[3], r[4]) for r in rows[:20]]
     res["answer"] = (
-        f"{_josa(ka, '과', '와')} {kb}는 2014-15 시즌 이후 프리미어리그에서 {len(rows)}번 맞붙었습니다. "
+        f"{_josa(ka, '과', '와')} {_josa(kb, '은', '는')} 2014-15 시즌 이후 프리미어리그에서 {len(rows)}번 맞붙었습니다. "
         f"{ka} {w}승, {kb} {l}승, 무승부 {d}번이고, 득점은 {ka} {gf}골, {kb} {ga}골입니다." + NOTE_RANGE
     )
     res["insight"] = f"최근 {min(5, len(rows))}경기에서는 {ka} {rw}승 {rd}무 {rl}패입니다."

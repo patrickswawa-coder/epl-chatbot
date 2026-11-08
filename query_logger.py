@@ -27,7 +27,7 @@ def _connect():
     return conn
 
 
-def log_query(session_id, question, result, latency_ms, error_code=None):
+def log_query(session_id, question, result, latency_ms):
     try:
         conn = _connect()
         with conn:
@@ -40,7 +40,7 @@ def log_query(session_id, question, result, latency_ms, error_code=None):
                     (question or "")[:500],
                     (result.get("sql") or "")[:2000],
                     result.get("answer_source"),
-                    error_code or result.get("error_code"),
+                    result.get("error_code"),
                     len(result.get("rows") or []),
                     int(latency_ms),
                     (result.get("answer") or result.get("error") or "")[:300],
