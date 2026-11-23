@@ -64,7 +64,7 @@ def idf_weights(chunks: list[dict]) -> dict[str, float]:
     n = len(chunks)
     df: dict[str, int] = {}
     for c in chunks:
-        for g in _bigrams(c["title"] + " " + c["text"]):
+        for g in _bigrams(c.get("doc", "") + " " + c["title"] + " " + c["text"]):
             df[g] = df.get(g, 0) + 1
     return {g: math.log((n + 1) / (d + 0.5)) for g, d in df.items()}
 
@@ -78,7 +78,7 @@ def keyword_score(question: str, chunk: dict, idf: dict[str, float] | None = Non
     w = {g: idf.get(g, 1.0) for g in q}
     total = sum(w.values()) or 1.0
     title = _bigrams(chunk["title"])
-    body = _bigrams(chunk["text"])
+    body = _bigrams(chunk.get("doc", "") + " " + chunk["text"])
     hit_title = sum(w[g] for g in q & title) / total
     hit_body = sum(w[g] for g in q & body) / total
     return min(1.0, 0.7 * hit_body + 0.8 * hit_title)
@@ -151,6 +151,7 @@ SYSTEM_PROMPT = """
 2. [문서]로 답할 수 없는 질문이면 다른 말 없이 정확히 NO_ANSWER 만 출력하세요.
 3. 2~5문장으로 자연스럽게 답하세요. 목록이나 마크다운 제목은 쓰지 마세요.
 4. 답 끝에 출처를 적지 마세요. 화면이 출처를 따로 보여 줍니다.
+5. [문서]에 이미 일어난 일('쓰고 있다', '했다')로 적힌 내용을 '예정'으로 바꾸지 말고 문서의 시제를 그대로 따르세요.
 """.strip()
 
 
@@ -170,6 +171,12 @@ def grounded(answer: str, question: str, chunks: list[dict]) -> bool:
     for c in chunks:
         allowed |= _numbers(c["title"] + " " + c["text"])
     return _numbers(answer) <= allowed
+
+
+def keyword_top(question: str) -> float:
+    """키워드 검색만으로 본 가장 높은 점수 (OpenAI 호출 없음)."""
+    hits = retrieve(question, top_k=1, use_embeddings=False)
+    return hits[0]["score"] if hits else 0.0
 
 
 def should_try(question: str) -> bool:

@@ -577,6 +577,19 @@ finally:
     rag.answer_from_docs = _orig_rag
 check(A, "문서에도 없으면 기존처럼 GPT 지식 답변(경고 표시)", r["answer_source"] == "gpt_fallback", f"출처={r['answer_source']}")
 
+check(A, "범위 밖으로 분류된 질문도 문서와 확실히 겹치면 문서 시도(챗봇 데이터 출처)",
+      rag.keyword_top("이 챗봇 데이터는 어디서 가져와?") >= 0.3 and rag.keyword_top("비트코인 가격 알려줘") < 0.3
+      and rag.keyword_top("오늘 점심 뭐 먹지?") < 0.3, f"{rag.keyword_top('이 챗봇 데이터는 어디서 가져와?'):.2f}")
+rag.answer_from_docs = lambda q, h=None: {"answer": "경기 결과와 골 기록은 Understat에서 받았습니다.",
+                                          "sources": [{"doc": "이 챗봇의 데이터", "title": "데이터 출처", "text": "", "score": 0.5}]}
+try:
+    r1, _ = run_pipeline("이 챗봇 데이터는 어디서 가져와?", t.ScopeError("OUT_OF_SCOPE"))
+    r2, _ = run_pipeline("비트코인 가격 알려줘", t.ScopeError("OUT_OF_SCOPE"))
+finally:
+    rag.answer_from_docs = _orig_rag
+check(A, "범위 밖 판정 후: 챗봇 질문은 문서 답변, 비트코인은 그대로 E02",
+      r1["answer_source"] == "rag" and r2["error_code"] == "E02", f"{r1['answer_source']} / {r2['error_code']}")
+
 # ============================================================
 # 결과 출력·저장
 # ============================================================

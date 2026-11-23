@@ -1506,6 +1506,19 @@ def answer_question(
 
         except ScopeError:
             result["sql"] = ""
+            # "이 챗봇 데이터는 어디서 가져와?"처럼 범위 밖으로 분류됐어도 문서와 키워드가 확실히 겹치면
+            # 문서 근거 답변을 한 번 시도한다 (키워드 점수만 보므로 '점심 메뉴' 같은 질문은 GPT를 더 부르지 않는다)
+            try:
+                from rag import answer_from_docs, keyword_top
+
+                doc = answer_from_docs(question, history) if keyword_top(question) >= 0.3 else None
+            except Exception:
+                doc = None
+            if doc:
+                result["answer"] = doc["answer"]
+                result["answer_source"] = "rag"
+                result["sources"] = doc["sources"]
+                return result
             result["error"] = error_message("E02")
             result["error_code"] = "E02"
             return result
