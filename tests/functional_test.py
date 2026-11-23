@@ -361,6 +361,16 @@ check(A, "하루 90회를 넘으면 더 요청하지 않음(무료 한도 보호
 live._state.update(matches=parsed, fetched=0.0, calls=0)
 kept = live.get_live_matches(now=t0, fetch=lambda: {"errors": {"requests": "limit"}, "response": []})
 check(A, "API 오류가 나도 앱은 계속 동작(직전 결과 유지)", kept == parsed and live._state["error"], live._state["error"] or "")
+os.environ["API_FOOTBALL_KEY"] = "test-key"
+st_ok = live.check_key(fetch=lambda: {"errors": [], "response": {"subscription": {"plan": "Free"},
+                                                                 "requests": {"current": 7, "limit_day": 100}}})
+st_bad = live.check_key(fetch=lambda: {"errors": {"token": "Error/Missing application key"}, "response": []})
+check(A, "관리자 키 확인: 정상 키면 사용량 표시", st_ok["ok"] and (st_ok["used"], st_ok["limit"]) == (7, 100), st_ok["message"])
+check(A, "관리자 키 확인: 틀린 키면 오류 문구(키 값은 노출 안 함)", not st_bad["ok"] and "키 오류" in st_bad["message"]
+      and "test-key" not in str(st_bad), st_bad["message"][:40])
+os.environ.pop("API_FOOTBALL_KEY", None)
+st_none = live.check_key(fetch=lambda: (_ for _ in ()).throw(AssertionError("요청하면 안 됨")))
+check(A, "관리자 키 확인: 키가 없으면 요청 없이 안내", not st_none["has_key"] and "설정되어 있지 않습니다" in st_none["message"])
 if orig_key is None:
     os.environ.pop("API_FOOTBALL_KEY", None)
 else:

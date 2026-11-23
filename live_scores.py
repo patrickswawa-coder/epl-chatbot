@@ -51,6 +51,35 @@ def _api_key() -> str | None:
         return None
 
 
+def check_key(fetch=None) -> dict:
+    """키가 맞는지 /status로 확인한다 (이 요청은 하루 한도에 포함되지 않는다). 키 값은 돌려주지 않는다."""
+    key = _api_key()
+    out = {"has_key": bool(key), "ok": False, "message": "", "used": None, "limit": None,
+           "calls_today": _state["calls"], "last_error": _state["error"]}
+    if not key:
+        out["message"] = "API_FOOTBALL_KEY가 설정되어 있지 않습니다 (Secrets 또는 .env 확인)."
+        return out
+    try:
+        if fetch is None:
+            resp = requests.get(URL.replace("/fixtures", "/status"), headers={"x-apisports-key": key}, timeout=8)
+            resp.raise_for_status()
+            payload = resp.json()
+        else:
+            payload = fetch()
+    except Exception as exc:
+        out["message"] = f"API 서버 연결 실패: {type(exc).__name__}"
+        return out
+    errors = payload.get("errors")
+    if errors:
+        out["message"] = f"키 오류: {errors}"
+        return out
+    resp_ = payload.get("response") or {}
+    req = resp_.get("requests") or {}
+    out.update(ok=True, used=req.get("current"), limit=req.get("limit_day"),
+               message=f"키 정상 · 플랜 {((resp_.get('subscription') or {}).get('plan')) or '-'}")
+    return out
+
+
 def parse_live(payload: dict) -> list[dict]:
     """API 응답에서 EPL 경기만 골라 화면에 필요한 값으로 정리한다."""
     out = []

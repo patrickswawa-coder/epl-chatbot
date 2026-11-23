@@ -43,6 +43,20 @@ if not st.session_state.get("admin_ok"):
             st.error("비밀번호가 맞지 않습니다.")
     st.stop()
 
+with st.expander("실시간 경기 카드 연결 상태 (API-Football)", expanded=False):
+    import live_scores
+
+    st.caption("키 값은 표시하지 않습니다. 이 확인 요청은 하루 무료 한도(100회)에 포함되지 않습니다.")
+    if st.button("키 확인하기"):
+        info = live_scores.check_key()
+        (st.success if info["ok"] else st.error)(info["message"])
+        k1, k2, k3 = st.columns(3)
+        k1.metric("키 인식", "있음" if info["has_key"] else "없음")
+        k2.metric("오늘 사용(계정 전체)", "-" if info["used"] is None else f"{info['used']} / {info['limit']}")
+        k3.metric("앱이 오늘 요청한 횟수", info["calls_today"])
+        if info["last_error"]:
+            st.warning(f"마지막 실시간 조회 오류: {info['last_error']}")
+
 cols, rows = read_logs(500)
 if not rows:
     st.info("아직 처리 기록이 없습니다. 메인 화면에서 질문을 해보세요.")
