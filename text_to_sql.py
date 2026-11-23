@@ -31,6 +31,7 @@ from database.aliases import (
     expand_for_answer,
     expand_for_sql,
     mentioned_kinds,
+    mentioned_names,
     missing_entities,
     season_codes,
 )
@@ -639,37 +640,66 @@ def _format_simple_result(
     if value is None:
         return "조회 결과가 없습니다."
 
-    if "goal_count" in column:
-        kinds = mentioned_kinds(question)
-        if kinds["team"] and not kinds["player"]:
-            return f"해당 팀의 득점은 {value}골입니다."
-        return f"질문하신 선수의 득점은 {value}골입니다."
+    # 예전에는 "질문하신 선수의 득점은 32골입니다", "win_count: 15"처럼
+    # 누구·어느 시즌인지 빠지거나 열 이름이 그대로 나왔다.
+    # 질문에서 선수·팀·시즌·홈/원정을 읽어 주어를 붙인다.
+    names = mentioned_names(question)
+    who = "·".join(ko for _, ko in names[:2])
+    codes = season_codes(question)
+    season = f"20{codes[0][:2]}-{codes[0][2:]} 시즌" if codes else ""
+    venue = "홈 " if "홈" in question else ("원정 " if "원정" in question else "")
+    if who:
+        subject = " ".join(p for p in (season, f"{who}의") if p)
+    else:
+        subject = " ".join(p for p in (season, "전체") if p) if season else ""
+    lead = f"{subject} " if subject else ""
 
-    if "assist_count" in column:
-        return f"어시스트 기록은 {value}회입니다."
+    try:
+        num = f"{int(value):,}" if float(value).is_integer() else f"{float(value):,.2f}"
+    except (TypeError, ValueError):
+        num = str(value)
 
-    if "match_count" in column:
-        return f"조건에 해당하는 경기는 {value}경기입니다."
+    def has(*keys):
+        return any(k in column for k in keys)
 
-    if "yellow_card_count" in column:
-        return f"옐로카드는 {value}회입니다."
+    if has("assist"):
+        return f"{lead}어시스트는 {num}개입니다."
+    if has("yellow"):
+        return f"{lead}{venue}옐로카드는 {num}장입니다."
+    if has("red_card", "red"):
+        return f"{lead}{venue}레드카드는 {num}장입니다."
+    if has("win"):
+        return f"{lead}{venue}승리 경기는 {num}경기입니다."
+    if has("loss", "lose", "defeat"):
+        return f"{lead}{venue}패배 경기는 {num}경기입니다."
+    if has("draw"):
+        return f"{lead}{venue}무승부 경기는 {num}경기입니다."
+    if has("goal", "score"):
+        if has("avg", "average"):
+            return f"{lead}{venue}경기당 평균 득점은 {num}골입니다."
+        if has("sum", "total") and not who:
+            return f"{lead}{venue}득점 합계는 {num}골입니다."
+        return f"{lead}{venue}득점은 {num}골입니다."
+    if has("match", "game", "count") and re.search(r"경기", question):
+        teams = [ko for kind, ko in names if kind == "team"]
+        if len(teams) == 2 and not venue:
+            # "맨체스터 유나이티드·맨체스터 시티의 경기 수" 대신 "A와 B의 맞대결은"
+            last = teams[0][-1]
+            josa = "과" if "가" <= last <= "힣" and (ord(last) - 0xAC00) % 28 else "와"
+            pre = f"{season} " if season else ""
+            return f"{pre}{teams[0]}{josa} {teams[1]}의 맞대결은 {num}경기입니다."
+        return f"{lead}{venue}경기 수는 {num}경기입니다."
+    if has("avg", "average"):
+        return f"{lead}평균값은 {num}입니다."
+    if has("max"):
+        return f"{lead}최댓값은 {num}입니다."
+    if has("min"):
+        return f"{lead}최솟값은 {num}입니다."
+    if has("sum", "total"):
+        return f"{lead}합계는 {num}입니다."
 
-    if "red_card_count" in column:
-        return f"레드카드는 {value}회입니다."
-
-    if "avg" in column or "average" in column:
-        return f"평균값은 {value}입니다."
-
-    if "sum" in column or "total" in column:
-        return f"합계는 {value}입니다."
-
-    if "max" in column:
-        return f"최댓값은 {value}입니다."
-
-    if "min" in column:
-        return f"최솟값은 {value}입니다."
-
-    return f"{columns[0]}: {value}"
+    # 무엇을 센 값인지 확실하지 않으면 GPT 요약에 맡긴다 (열 이름을 그대로 보여주지 않는다)
+    return None
 
 
 # ============================================================
@@ -1211,6 +1241,19 @@ def check_sql_semantics(question: str, sql: str) -> str | None:
     ):
         return "팀의 총 골 수는 matches의 home_score/away_score 또는 match_events.team 조건으로 계산해야 합니다."
 
+    # 한 팀의 총 골을 홈/원정 UNION으로 나눠 세면 결과가 두 줄로 나와 한쪽 값만 답에 쓰인다
+    # (실제 사례: 2021-22 시즌 첼시 총 골 76골인데 홈 득점 39골만 답함. 프롬프트 규칙만으로는 막지 못함)
+    if (
+        len(kinds["team"]) == 1
+        and not kinds["player"]
+        and re.search(r"총 ?(골|득점)|넣은 ?골|골 ?수|득점 ?수|득점 ?합계", q)
+        and not re.search(r"득점자|누가|누구|어시스트|순위|가장|홈|원정", q)
+        and re.search(r"\bunion\b", low)
+        and not re.search(r"from\s*\(\s*select", low)
+    ):
+        return ("홈/원정을 UNION으로 나누면 결과가 두 줄로 나와 한쪽 값만 답에 쓰입니다. "
+                "SUM(CASE WHEN home_team = '팀' THEN home_score ELSE away_score END) 처럼 한 줄로 계산하세요.")
+
     # 두 선수를 비교하는 질문인데 한 명만 반환하는 SQL
     if len(kinds["player"]) >= 2 and re.search(r"limit\s+1\b", low):
         return "두 선수를 비교하는 질문입니다. LIMIT 1을 쓰지 말고 모두의 값을 반환하세요."
@@ -1298,6 +1341,9 @@ def verify_answer(question: str, columns: list, rows: list, answer: str) -> bool
             elif isinstance(v, str):
                 allowed |= _numbers_in(v)
     allowed |= _numbers_in(question)
+    # 질문의 "17-18 시즌"을 답변에서 "2017-18 시즌"으로 풀어 써도 근거 있는 숫자로 본다
+    for code in season_codes(question):
+        allowed |= {float(2000 + int(code[:2])), float(int(code[2:])), float(2000 + int(code[2:]))}
     allowed |= set(float(i) for i in range(0, len(rows) + 2))  # 순위·건수
     allowed |= {float(len(rows))}
 

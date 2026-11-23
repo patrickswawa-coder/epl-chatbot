@@ -246,6 +246,17 @@ def mentioned_kinds(text: str) -> dict[str, set]:
     return out
 
 
+def mentioned_names(text: str) -> list[tuple[str, str]]:
+    """질문에 나온 선수·팀을 나온 순서대로 [(종류, 한글 정식명), ...] 로 돌려준다 (중복 제거)."""
+    out, seen = [], set()
+    for m in _FIND.finditer(text or ""):
+        kind, ko, db = ALIAS[m.group(0)]
+        if db not in seen:
+            seen.add(db)
+            out.append((kind, ko))
+    return out
+
+
 def expand_for_sql(text: str) -> str:
     """별명·시즌 뒤에 DB 저장명을 붙여 SQL 생성 AI가 정확한 값으로 검색하게 한다."""
     def repl(m):
