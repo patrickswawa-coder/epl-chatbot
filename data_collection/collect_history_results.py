@@ -53,7 +53,11 @@ def parse_date(text: str) -> str:
 def fetch_season(code: str) -> list[dict]:
     resp = requests.get(URL.format(code=code), timeout=30, headers={"User-Agent": "Mozilla/5.0"})
     resp.raise_for_status()
-    text = resp.content.decode("latin-1")
+    return parse_csv(resp.content.decode("latin-1"))
+
+
+def parse_csv(text: str) -> list[dict]:
+    """football-data.co.uk CSV에서 끝난 경기(스코어가 있는 행)만 골라 DB 팀 이름으로 바꿔 돌려준다."""
     rows = []
     for r in csv.DictReader(io.StringIO(text)):
         home, away = (r.get("HomeTeam") or "").strip(), (r.get("AwayTeam") or "").strip()

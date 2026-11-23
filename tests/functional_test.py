@@ -367,6 +367,99 @@ else:
     os.environ["API_FOOTBALL_KEY"] = orig_key
 
 # ============================================================
+# 13. Understat 점검 대비 (football-data.co.uk 스코어 보완)
+# ============================================================
+A = "13. 수집 장애 대비"
+import json as _json  # noqa: E402
+import sqlite3 as _sqlite3  # noqa: E402
+import types as _types  # noqa: E402
+
+sys.path.insert(0, str(ROOT / "data_collection"))
+import update_current_season as ucs  # noqa: E402
+from collect_history_results import parse_csv  # noqa: E402
+from fill_scores_football_data import fill_scores  # noqa: E402
+
+with tempfile.TemporaryDirectory() as d:
+    d = Path(d)
+    (d / "leagues.json").write_text("<!DOCTYPE html><title>Understat.com</title>We will come back soon", encoding="utf-8")
+    (d / "match_1.json").write_text('{"shots": []}', encoding="utf-8")
+    (d / "match_2.json").write_bytes(b"")
+    removed = ucs.clean_bad_cache(d)
+    check(A, "점검 안내 페이지·빈 파일로 저장된 응답만 지움", sorted(removed) == ["leagues.json", "match_2.json"]
+          and (d / "match_1.json").exists(), ", ".join(sorted(removed)))
+
+try:
+    _json.loads("<!DOCTYPE html>")
+except ValueError as exc:
+    reason = ucs.understat_failure_reason(exc)
+check(A, "JSON 오류를 '안내 페이지를 보냄'으로 설명", "안내 페이지" in reason, reason[:40])
+
+CSV = (
+    "﻿Div,Date,Time,HomeTeam,AwayTeam,FTHG,FTAG\n"
+    "E0,21/08/2026,20:00,Arsenal,Coventry,3,0\n"
+    "E0,01/11/2026,15:00,Man City,Newcastle,2,2\n"
+    "E0,08/11/2026,15:00,Nott'm Forest,Leeds,1,0\n"
+    "E0,09/11/2026,15:00,Fake FC,Leeds,1,0\n"
+    "E0,22/11/2026,15:00,Chelsea,Leeds,,\n"
+)
+rows = parse_csv(CSV)
+check(A, "CSV에서 끝난 경기만 읽고 팀 이름을 DB 표기로 바꿈",
+      len(rows) == 4 and rows[1]["home"] == "Manchester City" and rows[1]["away"] == "Newcastle United"
+      and rows[2]["home"] == "Nottingham Forest" and rows[0]["date"] == "2026-08-21", f"{len(rows)}경기")
+
+mem = _sqlite3.connect(":memory:")
+mem.execute("CREATE TABLE matches (match_id TEXT PRIMARY KEY, season TEXT, date TEXT, home_team TEXT, "
+            "away_team TEXT, home_score INTEGER, away_score INTEGER, source TEXT)")
+mem.executemany("INSERT INTO matches VALUES (?,?,?,?,?,?,?,'understat')", [
+    ("u1", "2627", "2026-08-21 19:00:00", "Arsenal", "Coventry", 3, 0),
+    ("u2", "2627", "2026-11-01 15:00:00", "Manchester City", "Newcastle United", None, None),
+    ("u3", "2627", "2026-11-08 15:00:00", "Nottingham Forest", "Leeds", None, None),
+    ("u4", "2627", "2026-11-22 15:00:00", "Chelsea", "Leeds", None, None),
+])
+filled, unmatched = fill_scores(mem, "2627", rows)
+got = dict((m, (h, a)) for m, h, a in mem.execute("SELECT match_id, home_score, away_score FROM matches"))
+check(A, "비어 있던 스코어만 채움(이미 있는 경기·예정 경기는 그대로)",
+      filled == 2 and got == {"u1": (3, 0), "u2": (2, 2), "u3": (1, 0), "u4": (None, None)}, f"채움 {filled}경기")
+check(A, "DB 일정에 없는 팀 이름은 따로 알려줌", unmatched == ["2026-11-09 Fake FC vs Leeds"], "; ".join(unmatched))
+check(A, "다시 실행해도 중복·변경 없음", fill_scores(mem, "2627", rows)[0] == 0)
+check(A, "새 행을 만들지 않음", mem.execute("SELECT COUNT(*) FROM matches").fetchone()[0] == 4)
+
+# Understat 실패 → football-data 보완으로 넘어가는지 (실제 네트워크·DB는 건드리지 않는다)
+calls = []
+fake_cu = _types.ModuleType("collect_understat")
+def _boom(season):
+    raise _json.JSONDecodeError("Expecting value", "<html>", 0)
+fake_cu.collect_season = _boom
+fake_fill = _types.ModuleType("fill_scores_football_data")
+fake_fill.main = lambda season: calls.append(season) or 3
+saved = {k: sys.modules.get(k) for k in ("collect_understat", "fill_scores_football_data")}
+orig_init, orig_clean = ucs.init_db, ucs.clean_bad_cache
+sys.modules.update(collect_understat=fake_cu, fill_scores_football_data=fake_fill)
+ucs.init_db, ucs.clean_bad_cache = (lambda: None), (lambda *a: [])
+try:
+    import contextlib as _cl
+    import io as _io
+    buf = _io.StringIO()
+    with _cl.redirect_stdout(buf):
+        code_ok = ucs.main("2627")
+    out_ok = buf.getvalue()
+    def _fail(season):
+        raise RuntimeError("network down")
+    fake_fill.main = _fail
+    with _cl.redirect_stdout(_io.StringIO()):
+        code_fail = ucs.main("2627")
+finally:
+    ucs.init_db, ucs.clean_bad_cache = orig_init, orig_clean
+    for k, v in saved.items():
+        if v is None:
+            sys.modules.pop(k, None)
+        else:
+            sys.modules[k] = v
+check(A, "Understat 점검 중이면 football-data 스코어 보완으로 진행", code_ok == 0 and calls == ["2627"]
+      and "football-data" in out_ok, "종료 코드 0")
+check(A, "보완까지 실패하면 실패로 끝남(로그에 [실패])", code_fail == 1, f"종료 코드 {code_fail}")
+
+# ============================================================
 # 결과 출력·저장
 # ============================================================
 out = ROOT / "tests" / "functional_report.csv"
