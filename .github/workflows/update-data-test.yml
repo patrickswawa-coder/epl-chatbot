@@ -1,0 +1,25 @@
+# [시험용] GitHub 서버에서 시즌 데이터 수집이 되는지만 확인한다. DB를 커밋하지 않는다.
+name: data-update-test
+on:
+  push:
+    branches: [test/auto-update]
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 패키지 설치
+        run: pip install -r requirements-collect.txt
+      - name: 수집 전 DB 현황
+        run: python -c "import sqlite3;c=sqlite3.connect('football_history.db');print(c.execute(\"select season,count(*),sum(home_score is not null),max(case when home_score is not null then date end) from matches where season>='2526' group by 1\").fetchall())"
+      - name: 현재 시즌 수집 (Understat)
+        run: python data_collection/update_current_season.py
+      - name: 수집 후 DB 현황
+        run: python -c "import sqlite3;c=sqlite3.connect('football_history.db');print(c.execute(\"select season,count(*),sum(home_score is not null),max(case when home_score is not null then date end) from matches where season>='2526' group by 1\").fetchall())"
+      - name: 과거 시즌 출처 접속 확인 (football-data.co.uk)
+        run: curl -sS -o /tmp/e0.csv -w "HTTP %{http_code}\n" https://www.football-data.co.uk/mmz4281/9394/E0.csv && head -3 /tmp/e0.csv
