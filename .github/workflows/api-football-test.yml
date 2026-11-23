@@ -13,14 +13,19 @@ jobs:
       KEY: ${{ secrets.API_FOOTBALL_KEY }}
     steps:
       - name: 키 등록 여부
-        run: '[ -n "$KEY" ] && echo "키 있음" || { echo "키 없음: GitHub 저장소 Settings > Secrets에 API_FOOTBALL_KEY를 등록하세요"; exit 1; }'
-      - name: 남은 요청 수·플랜
-        run: curl -sS -H "x-apisports-key: $KEY" https://v3.football.api-sports.io/status | python3 -c "import json,sys;d=json.load(sys.stdin);r=d.get('response') or {};print('errors:',d.get('errors'));print('plan:',(r.get('subscription') or {}).get('plan'),'| requests:',r.get('requests'))"
+        run: |
+          if [ -n "$KEY" ]; then echo "키 있음"; else echo "키 없음 - Settings > Secrets에 API_FOOTBALL_KEY 등록 필요"; exit 1; fi
+      - name: 남은 요청 수와 플랜
+        run: |
+          curl -sS -H "x-apisports-key: $KEY" https://v3.football.api-sports.io/status > status.json
+          python3 -c "import json;d=json.load(open('status.json'));r=d.get('response') or {};print('errors =',d.get('errors'));print('plan =',(r.get('subscription') or {}).get('plan'));print('requests =',r.get('requests'))"
       - name: 시즌별 접근 가능 여부 (EPL)
         run: |
           for s in 2026 2025 2024; do
-            curl -sS -H "x-apisports-key: $KEY" "https://v3.football.api-sports.io/fixtures?league=39&season=$s" \
-            | python3 -c "import json,sys;d=json.load(sys.stdin);print('$s 시즌: 경기',d.get('results'),'| errors:',d.get('errors'))"
+            curl -sS -H "x-apisports-key: $KEY" "https://v3.football.api-sports.io/fixtures?league=39&season=$s" > f.json
+            python3 -c "import json;d=json.load(open('f.json'));print('$s season results =',d.get('results'),'errors =',d.get('errors'))"
           done
       - name: 진행 중 경기 조회 (실시간)
-        run: curl -sS -H "x-apisports-key: $KEY" "https://v3.football.api-sports.io/fixtures?live=39" | python3 -c "import json,sys;d=json.load(sys.stdin);print('진행 중 EPL 경기:',d.get('results'),'| errors:',d.get('errors'))"
+        run: |
+          curl -sS -H "x-apisports-key: $KEY" "https://v3.football.api-sports.io/fixtures?live=39" > live.json
+          python3 -c "import json;d=json.load(open('live.json'));print('live EPL results =',d.get('results'),'errors =',d.get('errors'))"
