@@ -53,9 +53,11 @@ DB_PATH = BASE_DIR / "football_history.db"
 
 from cards import card_html  # noqa: E402
 from theme import apply_theme  # noqa: E402
+from live_scores import get_live_matches, live_html  # noqa: E402
 from views import (  # noqa: E402
     home_numbers,
     home_stats_html,
+    ko_name,
     leaderboard_html,
     matchlist_html,
     meta_html,
@@ -374,7 +376,7 @@ with st.sidebar:
         f'<div class="stat-cell"><div class="stat-num">{stats["events"]:,}</div><div class="stat-name">이벤트</div></div>'
         f'<div class="stat-cell"><div class="stat-num">{stats["seasons"]:,}</div><div class="stat-name">시즌</div></div>'
         '</div>'
-        '<div class="side-note">프리미어리그 · 2014-15 시즌부터</div>',
+        '<div class="side-note">경기 결과 2000-01 시즌부터 · 골 기록 2014-15 시즌부터</div>',
         unsafe_allow_html=True,
     )
 
@@ -428,6 +430,12 @@ else:
 # =========================================================
 # 첫 화면: 데이터 현황 + 질문 유형별 바로가기 + 이번 시즌 득점 선두
 # =========================================================
+
+# 지금 진행 중인 EPL 경기 (API-Football 키가 있고 경기가 있을 때만 보인다)
+_live = get_live_matches()
+if _live:
+    st.markdown(live_html(_live, ko_name), unsafe_allow_html=True)
+
 
 QUICK_START = [
     ("PLAYER", "선수 기록", "골·어시스트·시즌별 기록을 카드로", [

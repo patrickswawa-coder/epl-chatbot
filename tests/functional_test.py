@@ -281,6 +281,92 @@ answers = {run_pipeline("쏘니 골 몇 개야?")[0]["answer"] for _ in range(3)
 check(A, "별명(쏘니)과 본명(손흥민) → 같은 답", len(answers) == 1, list(answers)[0][:40])
 
 # ============================================================
+# 11. 과거 시즌 경기 결과 (2000-01 ~ 2013-14)
+# ============================================================
+A = "11. 과거 시즌"
+from database.aliases import mentioned_names  # noqa: E402
+
+cols, rows = t.run_sql("SELECT COUNT(*), COUNT(DISTINCT season) FROM matches WHERE season < '1415'")
+check(A, "2000-01~2013-14 경기 결과 14시즌 5,320경기", rows[0] == (5320, 14), f"{rows[0]}")
+arsenal = ("SELECT SUM(CASE WHEN (home_team = 'Arsenal' AND home_score > away_score) OR (away_team = 'Arsenal' "
+           "AND away_score > home_score) THEN 1 ELSE 0 END) AS win_count, "
+           "SUM(CASE WHEN home_score = away_score THEN 1 ELSE 0 END) AS draw_count, "
+           "SUM(CASE WHEN (home_team = 'Arsenal' AND home_score < away_score) OR (away_team = 'Arsenal' "
+           "AND away_score < home_score) THEN 1 ELSE 0 END) AS loss_count FROM matches WHERE season = '0304' "
+           "AND (home_team = 'Arsenal' OR away_team = 'Arsenal') AND home_score IS NOT NULL")
+cols, rows = t.run_sql(arsenal)
+check(A, "실제 기록과 일치: 아스널 2003-04 무패(26승 12무 0패)", rows[0] == (26, 12, 0), f"{rows[0]}")
+check(A, "옛 시즌이 섞여도 '최신 시즌'은 2026-27", t.latest_season_code() == "2627", t.latest_season_code() or "")
+for q, expect in [("2005-06 시즌 램파드 골 수", True), ("2003-04 시즌 득점왕은?", True), ("2001-02 시즌 앙리 어시스트", True),
+                  ("2003-04 시즌 아스널 승리 경기 수", False), ("2005-06 시즌 첼시 골 수", False),
+                  ("2008-09 시즌 총 골 수", False), ("손흥민 2019-20 시즌 골", False)]:
+    got = bool(t.pre_event_season_note(q))
+    check(A, f"'{q}' → {'선수 기록 없음 안내' if expect else '정상 조회'}", got == expect, "")
+issue = t.check_sql_semantics("2005-06 시즌 가장 많은 골을 넣은 팀은?",
+                              "SELECT team, COUNT(*) AS goal_count FROM match_events WHERE match_id IN "
+                              "(SELECT match_id FROM matches WHERE season = '0506') GROUP BY team ORDER BY goal_count DESC LIMIT 1")
+check(A, "옛 시즌에 골 이벤트 표 사용 → 거부(경기 스코어로 다시 계산)", bool(issue), (issue or "")[:60])
+r, n = run_pipeline("2003-04 시즌 아스널 승리 경기 수",
+                    "SELECT COUNT(*) AS win_count FROM matches WHERE season = '0304' AND ((home_team = 'Arsenal' "
+                    "AND home_score > away_score) OR (away_team = 'Arsenal' AND away_score > home_score))")
+check(A, "옛 시즌 경기 결과 질문 → 정답(26승)", "26경기" in (r["answer"] or ""), r["answer"] or "")
+r, n = run_pipeline("2005-06 시즌 램파드 골 수")
+check(A, "옛 시즌 선수 기록 질문 → GPT 호출 없이 안내", n == 0 and r["error_code"] == "E04", (r["answer"] or "")[:50])
+r, n = run_pipeline("아스날 맨시티 상대전적")
+check(A, "상대전적 카드가 2000-01 시즌부터 집계", "2000-01" in (r["answer"] or "") and r["card"]["total"] > 24,
+      f"{r['card']['total']}경기")
+check(A, "'맨체스터 더비'의 '더비'를 더비 카운티로 오인하지 않음", mentioned_names("맨체스터 더비 결과") == [], "")
+check(A, "옛 팀 별명 인식(볼튼 → 볼턴 원더러스)", mentioned_names("볼튼 2006-07 승리") == [("team", "볼턴 원더러스")], "")
+
+# ============================================================
+# 12. 진행 중 경기 (실시간 스코어)
+# ============================================================
+A = "12. 실시간 경기"
+import live_scores as live  # noqa: E402
+
+SAMPLE = {"errors": [], "response": [
+    {"league": {"id": 39}, "fixture": {"status": {"short": "2H", "elapsed": 67}},
+     "teams": {"home": {"name": "Arsenal"}, "away": {"name": "Newcastle"}}, "goals": {"home": 2, "away": 1}},
+    {"league": {"id": 39}, "fixture": {"status": {"short": "HT", "elapsed": 45}},
+     "teams": {"home": {"name": "Wolves"}, "away": {"name": "Chelsea"}}, "goals": {"home": 0, "away": 0}},
+    {"league": {"id": 262}, "fixture": {"status": {"short": "1H", "elapsed": 12}},
+     "teams": {"home": {"name": "Club Queretaro"}, "away": {"name": "Necaxa"}}, "goals": {"home": 0, "away": 0}},
+]}
+parsed = live.parse_live(SAMPLE)
+check(A, "여러 리그 중 EPL 경기만 골라냄", len(parsed) == 2, f"{len(parsed)}경기")
+check(A, "API 팀 이름을 DB 이름으로 맞춤(Newcastle → Newcastle United)", parsed[0]["away"] == "Newcastle United"
+      and parsed[1]["home"] == "Wolverhampton Wanderers", "")
+html = live.live_html(parsed, __import__("views").ko_name)
+check(A, "카드에 한글 팀명·시간·스코어 표시", all(x in html for x in ("아스널", "뉴캐슬", "67'", "2 - 1", ">HT<")), "")
+
+orig_key = os.environ.pop("API_FOOTBALL_KEY", None)
+live._state.update(matches=[], fetched=0.0, calls=0, error=None)
+check(A, "키가 없으면 요청 없이 빈 목록(앱은 그대로)", live.get_live_matches(fetch=lambda: SAMPLE) == [] and live._state["calls"] == 0)
+os.environ["API_FOOTBALL_KEY"] = "test-key"
+calls = []
+fake = lambda: (calls.append(1), SAMPLE)[1]  # noqa: E731
+t0 = 1_000_000.0
+live.get_live_matches(now=t0, fetch=fake)
+live.get_live_matches(now=t0 + 60, fetch=fake)
+check(A, "경기 중에는 3분 안에 다시 요청하지 않음", len(calls) == 1, f"요청 {len(calls)}회")
+live.get_live_matches(now=t0 + 200, fetch=fake)
+check(A, "3분이 지나면 새로 요청", len(calls) == 2, f"요청 {len(calls)}회")
+live._state.update(matches=[], fetched=t0, calls=0)
+live.get_live_matches(now=t0 + 600, fetch=fake)
+check(A, "진행 중 경기가 없으면 30분 간격", len(calls) == 2, f"요청 {len(calls)}회")
+live._state.update(matches=[], fetched=0.0, calls=live.DAILY_BUDGET)
+before = len(calls)
+live.get_live_matches(now=t0 + 99999, fetch=fake)
+check(A, "하루 90회를 넘으면 더 요청하지 않음(무료 한도 보호)", len(calls) == before, "")
+live._state.update(matches=parsed, fetched=0.0, calls=0)
+kept = live.get_live_matches(now=t0, fetch=lambda: {"errors": {"requests": "limit"}, "response": []})
+check(A, "API 오류가 나도 앱은 계속 동작(직전 결과 유지)", kept == parsed and live._state["error"], live._state["error"] or "")
+if orig_key is None:
+    os.environ.pop("API_FOOTBALL_KEY", None)
+else:
+    os.environ["API_FOOTBALL_KEY"] = orig_key
+
+# ============================================================
 # 결과 출력·저장
 # ============================================================
 out = ROOT / "tests" / "functional_report.csv"

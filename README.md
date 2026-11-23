@@ -19,6 +19,9 @@ epl-chatbot/
 ├── pages/admin.py            # 관리자 화면 (/admin, 비밀번호 필요)
 ├── tests/accuracy_test.py    # 30문항 정확도 테스트 (OpenAI 키 필요)
 ├── tests/fast_path_test.py   # 빠른 경로 정답 대조 테스트 (키 없이 실행)
+├── tests/functional_test.py  # 기능·예외·통합 테스트 (키 없이 실행)
+├── tests/trace_question.py   # 질문 하나의 처리 과정(SQL·거부 이유) 추적 (OpenAI 키 필요)
+├── live_scores.py            # 진행 중인 EPL 경기 실시간 스코어 (API-Football 무료)
 ├── requirements.txt
 ├── .env                      # API 키·관리자 비밀번호 (직접 만들기, 공유 금지)
 ├── database/
@@ -32,6 +35,8 @@ epl-chatbot/
     ├── collect_api_football.py     # 어시스트/카드 보완 수집
     ├── dedupe_sources.py           # 중복 골 병합 (--apply로 실제 반영)
     ├── update_current_season.py    # 진행 중인 시즌 갱신 (Understat, 무료, 반복 실행 가능)
+    ├── collect_history_results.py  # 2000-01~2013-14 경기 결과 (football-data.co.uk)
+    ├── daily_update.bat            # 매일 자동 갱신 (작업 스케줄러용)
     └── auto_collect.py             # 경기 종료 자동 수집 (30분 간격)
 ```
 
@@ -107,10 +112,37 @@ python tests/accuracy_test.py           # 정확도 테스트 (OpenAI 호출 발
 | E08 | 호출 제한 초과 |
 | E09 | 예상하지 못한 오류 |
 
+## 데이터 범위와 갱신
+| 데이터 | 기간 | 출처 |
+|---|---|---|
+| 경기 결과(날짜·팀·스코어) | 2000-01 시즌 ~ 현재 | 2000-01~2013-14: football-data.co.uk / 2014-15~: Understat |
+| 골·어시스트·득점 시간 | 2014-15 시즌 ~ 현재 | Understat |
+| 진행 중 경기 스코어 | 실시간 (화면에만 표시) | API-Football 무료 플랜 |
+
+- 과거 시즌 경기 결과 다시 받기: `python data_collection/collect_history_results.py`
+- 2014-15 이전 시즌의 선수 기록을 물으면 GPT를 부르지 않고 "기록 없음"을 안내합니다.
+
+### 매일 자동 갱신 (윈도우 작업 스케줄러)
+`data_collection/daily_update.bat`이 이번 시즌 끝난 경기를 수집해 GitHub에 올리면 배포 앱이 자동으로 반영합니다.
+PowerShell에서 한 번만 등록하면 됩니다 (PC가 꺼져 있던 날은 켜진 뒤 실행).
+```powershell
+$bat = "C:\경로\epl-chatbot\data_collection\daily_update.bat"
+$a = New-ScheduledTaskAction -Execute $bat
+$t = New-ScheduledTaskTrigger -Daily -At 10:00
+$s = New-ScheduledTaskSettingsSet -StartWhenAvailable
+Register-ScheduledTask -TaskName "EPL챗봇 데이터 갱신" -Action $a -Trigger $t -Settings $s
+```
+기록은 `data_collection/daily_update.log`에 남습니다. 지우려면 `Unregister-ScheduledTask -TaskName "EPL챗봇 데이터 갱신"`.
+
+### 실시간 경기 카드
+배포 환경의 Secrets에 `API_FOOTBALL_KEY`를 넣으면, EPL 경기가 진행 중일 때 첫 화면 위에 LIVE 카드가 보입니다.
+무료 한도(하루 100회)를 넘지 않게 경기 중 3분, 평소 30분 간격으로만 요청하고 하루 90회에서 멈춥니다.
+
 ## 알려진 제약사항
 - 같은 골이 두 소스에서 중복 저장되는 문제는 `dedupe_sources.py`로 병합했지만,
   소스마다 집계 기준이 달라 공식 기록과 1~3건 차이가 날 수 있습니다.
 - 카드 데이터는 2024-25 시즌만 있습니다.
-- API-Football 무료 플랜은 하루 약 100회, 현재 시즌 데이터는 막힐 수 있습니다(유료 플랜 필요).
+- API-Football 무료 플랜은 하루 100회이고, 시즌 경기 목록은 2022~2024 시즌만 받을 수 있습니다
+  (2026-11 확인). 그래서 이번 시즌 DB 갱신은 Understat + PC 예약 작업으로 하고, API-Football은 진행 중 경기 스코어에만 씁니다.
 - 답변 검증은 숫자만 확인합니다. 이름은 "생성된 SQL"과 결과 표로 확인하세요.
 - GPT가 만든 SQL이 문법은 맞아도 의미가 틀릴 수 있어, 정확도 테스트로 계속 점검합니다.

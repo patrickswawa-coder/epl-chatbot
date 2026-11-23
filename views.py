@@ -180,8 +180,8 @@ def home_stats_html(n: dict) -> str:
     return (
         '<div class="home-stats">'
         f'<div><div class="n hi">{n["matches"]:,}</div><div class="l">경기 기록</div></div>'
-        f'<div><div class="n">{n["goals"]:,}</div><div class="l">골 기록</div></div>'
-        f'<div><div class="n">{n["seasons"]:,}</div><div class="l">시즌 (2014-15~)</div></div>'
+        f'<div><div class="n">{n["goals"]:,}</div><div class="l">골 기록 (2014-15~)</div></div>'
+        f'<div><div class="n">{n["seasons"]:,}</div><div class="l">시즌 (2000-01~)</div></div>'
         f'<div><div class="n">{escape(last_short)}</div><div class="l">마지막 경기 반영일</div></div>'
         "</div>"
     )

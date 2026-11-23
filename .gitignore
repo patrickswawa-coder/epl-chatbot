@@ -19,3 +19,6 @@ text_to_sql.step*.py
 football_history_backup_*.db
 
 # 주의: football_history.db 는 일부러 올립니다 (Streamlit Cloud가 읽어야 함)
+
+# 매일 자동 갱신 기록
+data_collection/daily_update.log
