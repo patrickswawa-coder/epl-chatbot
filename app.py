@@ -317,16 +317,20 @@ if "followup_questions" not in st.session_state:
     st.session_state.followup_questions = []
 
 
+def _go_home() -> None:
+    """제목(EPL 챗봇)을 누르면 대화를 비우고 첫 화면으로 돌아간다 (대화 초기화와 같다)."""
+    st.session_state.messages = []
+    st.session_state.followup_questions = []
+    st.session_state.pop("pending_question", None)
+
+
 # =========================================================
 # 사이드바
 # =========================================================
 
 with st.sidebar:
-    st.markdown(
-        '<div class="brand-kicker">PREMIER LEAGUE DATA</div>'
-        '<div class="brand-name">EPL 챗봇</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="brand-kicker">PREMIER LEAGUE DATA</div>', unsafe_allow_html=True)
+    st.button("EPL 챗봇", key="brand_home", on_click=_go_home, help="처음 화면으로 돌아가기")
 
     # 추천 질문 10개를 성격별로 묶어 보여준다 (축구를 잘 몰라도 고르기 쉽게)
     example_groups = [
@@ -406,12 +410,10 @@ with st.container(key="adminlink"):
 _has_chat = bool(st.session_state.messages)
 
 if _has_chat:
-    # 대화가 시작되면 헤더를 줄여 답변이 더 많이 보이게 한다
-    st.markdown(
-        '<div class="hero compact"><p class="hero-kicker">ASK · QUERY · ANSWER</p>'
-        '<p class="hero-title">EPL 데이터 챗봇</p></div>',
-        unsafe_allow_html=True,
-    )
+    # 대화가 시작되면 헤더를 줄여 답변이 더 많이 보이게 한다. 제목을 누르면 첫 화면으로 돌아간다.
+    with st.container(key="herohome"):
+        st.markdown('<p class="home-kicker">ASK · QUERY · ANSWER</p>', unsafe_allow_html=True)
+        st.button("EPL 데이터 챗봇", key="home_title", on_click=_go_home, help="처음 화면으로 돌아가기")
 else:
     st.markdown(
         '<div class="hero">'

@@ -150,6 +150,13 @@ html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
 }
 [data-testid="stSidebar"] .stButton > button > div { justify-content: flex-start !important; width: 100%; }
 [data-testid="stSidebar"] .stButton > button p { color: inherit !important; text-align: left !important; margin: 0; }
+/* 사이드바 제목(EPL 챗봇) = 첫 화면으로 돌아가는 버튼 */
+[data-testid="stSidebar"] .st-key-brand_home button {
+    background: transparent !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+    min-height: 0 !important; padding: 0 !important; width: auto;
+}
+[data-testid="stSidebar"] .st-key-brand_home button p { font-family: var(--head); font-size: 1.9rem !important; line-height: 1.1; color: var(--text) !important; }
+[data-testid="stSidebar"] .st-key-brand_home button:hover p { color: var(--lime) !important; }
 [data-testid="stSidebar"] .st-key-reset_btn button {
     border: 1px solid var(--line2) !important; justify-content: center; text-align: center; margin-top: 1rem; padding: .7rem 1rem !important;
 }
@@ -273,6 +280,16 @@ html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
 }
 .st-key-adminlink [data-testid="stPageLink"] a:hover * { color: var(--lime) !important; }
 .hero.compact { padding-bottom: .9rem; margin-bottom: 1.2rem; }
+/* 대화 중 상단 제목 = 첫 화면으로 돌아가는 버튼 */
+.st-key-herohome { gap: .45rem !important; padding-bottom: .9rem; margin-bottom: 1.2rem; border-bottom: 1px solid var(--line); }
+.st-key-herohome [data-testid="stMarkdownContainer"] p.home-kicker { font-family: var(--num); letter-spacing: .32em; font-size: .95rem; line-height: 1.3; color: var(--lime); margin: 0 !important; }
+.st-key-herohome [data-testid="stElementContainer"], .st-key-herohome .stMarkdown, .st-key-herohome [data-testid="stMarkdownContainer"] { margin: 0 !important; }
+.st-key-home_title button { background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; min-height: 0 !important; }
+.st-key-home_title button > div { justify-content: flex-start !important; }
+.st-key-home_title button p { font-family: var(--head); font-size: 1.6rem !important; line-height: 1.15; color: var(--text); margin: 0; }
+.st-key-home_title button p::after { content: "← 처음 화면"; font-family: 'Noto Sans KR', sans-serif; font-size: .75rem; color: var(--mute); margin-left: .8rem; vertical-align: middle; letter-spacing: 0; }
+.st-key-home_title button:hover p, .st-key-home_title button:hover p::after { color: var(--lime); }
+
 .stApp .hero.compact .hero-title { font-size: 1.6rem !important; }
 .hero-chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .8rem; }
 .hero-chips span { border: 1px solid var(--line2); color: var(--soft); font-size: .76rem; padding: .2rem .6rem; }
