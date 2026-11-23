@@ -19,13 +19,11 @@ jobs:
         run: |
           curl -sS -H "x-apisports-key: $KEY" https://v3.football.api-sports.io/status > status.json
           python3 -c "import json;d=json.load(open('status.json'));r=d.get('response') or {};print('errors =',d.get('errors'));print('plan =',(r.get('subscription') or {}).get('plan'));print('requests =',r.get('requests'))"
-      - name: 시즌별 접근 가능 여부 (EPL)
-        run: |
-          for s in 2026 2025 2024; do
-            curl -sS -H "x-apisports-key: $KEY" "https://v3.football.api-sports.io/fixtures?league=39&season=$s" > f.json
-            python3 -c "import json;d=json.load(open('f.json'));print('$s season results =',d.get('results'),'errors =',d.get('errors'))"
-          done
       - name: 진행 중 경기 조회 (실시간)
         run: |
-          curl -sS -H "x-apisports-key: $KEY" "https://v3.football.api-sports.io/fixtures?live=39" > live.json
-          python3 -c "import json;d=json.load(open('live.json'));print('live EPL results =',d.get('results'),'errors =',d.get('errors'))"
+          curl -sS -H "x-apisports-key: $KEY" "https://v3.football.api-sports.io/fixtures?live=all" > live.json
+          python3 -c "import json;d=json.load(open('live.json'));r=d.get('response') or [];epl=[x for x in r if (x.get('league') or {}).get('id')==39];print('live all =',d.get('results'),'| EPL live =',len(epl),'| errors =',d.get('errors'));print([(x['teams']['home']['name'],x['teams']['away']['name'],x['league']['season']) for x in r[:3]])"
+      - name: 오늘 EPL 일정 (현재 시즌 날짜 조회 가능 여부)
+        run: |
+          curl -sS -H "x-apisports-key: $KEY" "https://v3.football.api-sports.io/fixtures?league=39&date=$(date -u +%F)" > d.json
+          python3 -c "import json;d=json.load(open('d.json'));print('today EPL =',d.get('results'),'errors =',d.get('errors'))"
