@@ -36,6 +36,7 @@ from database.aliases import (
     season_codes,
 )
 from database.entity_resolver import format_hint, resolve_entities
+from database.db_utils import EVENT_SEASON_CODE_FROM, EVENT_SEASON_FROM, MATCH_SEASON_FROM
 from error_codes import MAX_QUESTION_LENGTH, error_message
 
 
@@ -91,8 +92,10 @@ SCHEMA_DESCRIPTION = """
 - away_team (TEXT)
 - home_score (INTEGER, 아직 치르지 않은 예정 경기는 NULL)
 - away_score (INTEGER, 아직 치르지 않은 예정 경기는 NULL)
-- source (TEXT, 'understat' / 'api_football')
+- source (TEXT, 'understat' / 'api_football' / 'football_data')
 ※ matches에는 진행 중인 시즌의 남은 일정(스코어 NULL)도 들어 있습니다.
+※ matches(경기 결과·스코어)는 2000-01 시즌('0001')부터, match_events(골·어시스트·카드)는 2014-15 시즌('1415')부터 있습니다.
+  2014-15 이전 시즌의 팀 득점·승패는 matches의 home_score/away_score로 계산하세요.
 
 테이블 2: match_events (경기 내 이벤트)
 - event_id (INTEGER, PK)
@@ -201,7 +204,7 @@ SYSTEM_PROMPT = f"""
    SQL을 만들지 말고 정확히 NOT_IN_DB 라는 단어 하나만 출력하세요.
    (오프사이드 같은 축구 규칙·용어·일반 상식 질문도 NOT_IN_DB 입니다.)
 3) "통산", "역대", "전체", "가장 많은" 같은 기록 질문은 NOT_IN_DB가 아닙니다.
-   데이터베이스에 담긴 기간(2014-15 시즌~현재) 안에서 집계하는 SQL을 만드세요.
+   데이터베이스에 담긴 기간(경기 결과 2000-01 시즌~, 골·어시스트 2014-15 시즌~) 안에서 집계하는 SQL을 만드세요.
 
 [데이터베이스 스키마]
 {SCHEMA_DESCRIPTION}
@@ -248,7 +251,7 @@ SYSTEM_PROMPT = f"""
 13-1. "이번 시즌", "올 시즌", "최근 시즌" 같은 상대적 표현은 별도 시스템 메시지로 알려 주는
     데이터베이스의 최신 시즌 코드를 기준으로 해석하세요. ("지난 시즌"은 그 바로 이전 시즌입니다.)
 13-2. 질문에 시즌·연도·"이번 시즌" 같은 기간 표현이 전혀 없으면 season 조건을 넣지 마세요.
-    이 경우 DB에 담긴 전체 기간(2014-15 시즌 이후)을 기준으로 집계합니다. (예: "손흥민 득점수" → 전 시즌 합계)
+    이 경우 DB에 담긴 전체 기간을 기준으로 집계합니다. (예: "손흥민 득점수" → 전 시즌 합계)
 14. 사용자가 질문한 시즌/팀/선수/경기 조건을 임의로 생략하지 마세요.
     질문에 팀이 나오면 home_team/away_team 조건을, 선수가 나오면 player/assist_player 조건을 반드시 넣으세요.
 14-1. 질문에 "(DB 선수명: Bukayo Saka)"처럼 DB 저장명이 붙어 있으면 그 이름을 정확히 그대로 사용하세요.
@@ -1258,6 +1261,12 @@ def check_sql_semantics(question: str, sql: str) -> str | None:
     if len(kinds["player"]) >= 2 and re.search(r"limit\s+1\b", low):
         return "두 선수를 비교하는 질문입니다. LIMIT 1을 쓰지 말고 모두의 값을 반환하세요."
 
+    # 2014-15 이전 시즌은 골·어시스트 기록(match_events)이 없다 → 팀 득점·승패는 matches 스코어로
+    old = [c for c in season_codes(q) if c < EVENT_SEASON_CODE_FROM]
+    if old and "match_events" in low:
+        return (f"{EVENT_SEASON_FROM} 이전 시즌은 match_events(골 기록)가 없습니다. "
+                "팀 득점·승패는 matches의 home_score/away_score로 계산하세요.")
+
     if _includes_unplayed_matches(q, low):
         return ("matches에는 아직 치르지 않은 예정 경기(스코어 NULL)가 있습니다. "
                 "home_score IS NOT NULL 조건을 넣어 치른 경기만 조회하세요.")
@@ -1329,6 +1338,32 @@ def _numbers_in(text: str) -> set[float]:
         except ValueError:
             pass
     return out
+
+
+PLAYER_RECORD_RE = re.compile(r"득점자|득점왕|도움왕|어시스트|도움|누가|누구|선수|해트트릭|카드|경고|퇴장|몇 ?분|시간대")
+
+
+def pre_event_season_note(question: str) -> str | None:
+    """2014-15 이전 시즌의 선수 기록 질문이면 안내 문장을, 아니면 None을 돌려준다."""
+    codes = season_codes(question)
+    if not codes or any(c >= EVENT_SEASON_CODE_FROM for c in codes):
+        return None
+    kinds = mentioned_kinds(question)
+    # 팀 이름도 '팀'이라는 말도 없이 골·득점을 물으면 선수 기록 질문으로 본다 (예: "램파드 골 수")
+    # 단, "총 골", "전체 득점", "경기당 평균"처럼 리그 전체 합계는 경기 결과로 계산할 수 있으므로 제외
+    player_goal = (
+        re.search(r"골|득점", question)
+        and not kinds["team"]
+        and "팀" not in question
+        and not re.search(r"총|전체|합계|리그|경기당|평균|스코어", question)
+    )
+    if not (kinds["player"] or PLAYER_RECORD_RE.search(question) or player_goal):
+        return None
+    return (
+        f"{EVENT_SEASON_FROM} 시즌 이전의 득점자·어시스트·카드 같은 선수 기록은 데이터베이스에 없습니다. "
+        f"그 시즌들은 경기 결과(승패·스코어)만 {MATCH_SEASON_FROM} 시즌부터 조회할 수 있습니다. "
+        "예: \"2005-06 시즌 첼시 승리 경기 수\", \"2003-04 시즌 아스널 경기 결과\""
+    )
 
 
 def verify_answer(question: str, columns: list, rows: list, answer: str) -> bool:
@@ -1414,6 +1449,14 @@ def answer_question(
         fast = None
     if fast:
         return fast
+
+    # [기록 범위 안내] 2014-15 이전 시즌의 득점자·어시스트·카드 같은 선수 기록은 DB에 없다
+    note = pre_event_season_note(question)
+    if note:
+        result["answer"] = note
+        result["answer_source"] = "db"
+        result["error_code"] = "E04"
+        return result
 
     # --------------------------------------------------------
     # 1~2) SQL 생성 → 검증 → 실행
@@ -1595,7 +1638,8 @@ def answer_question(
         and re.search(r"통산|역대|전체 기간|모든 시즌", question)
         and result.get("answer")
     ):
-        result["answer"] += "\n\n※ 데이터베이스에 수록된 2014-15 시즌 이후 기록 기준입니다."
+        since = EVENT_SEASON_FROM if "match_events" in (result.get("sql") or "").lower() else MATCH_SEASON_FROM
+        result["answer"] += f"\n\n※ 데이터베이스에 수록된 {since} 시즌 이후 기록 기준입니다."
 
     if rows and len(rows) <= 5:
         try:

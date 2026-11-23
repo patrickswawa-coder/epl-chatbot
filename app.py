@@ -374,7 +374,7 @@ with st.sidebar:
         f'<div class="stat-cell"><div class="stat-num">{stats["events"]:,}</div><div class="stat-name">이벤트</div></div>'
         f'<div class="stat-cell"><div class="stat-num">{stats["seasons"]:,}</div><div class="stat-name">시즌</div></div>'
         '</div>'
-        '<div class="side-note">프리미어리그 · 2014-15 시즌부터</div>',
+        '<div class="side-note">경기 결과 2000-01 시즌부터 · 골 기록 2014-15 시즌부터</div>',
         unsafe_allow_html=True,
     )
 

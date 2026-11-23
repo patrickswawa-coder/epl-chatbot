@@ -5,6 +5,8 @@
 """
 from __future__ import annotations
 
+from database.db_utils import MATCH_SEASON_FROM
+
 from html import escape
 
 
@@ -107,7 +109,7 @@ def _h2h_html(card: dict) -> str:
     return (
         '<div class="pcard">'
         '<div class="pcard-head"><div><div class="pcard-kicker">HEAD TO HEAD · FROM DATABASE</div></div>'
-        f'<div class="pcard-sub">프리미어리그 · 2014-15 시즌 이후 {card["total"]}경기</div></div>'
+        f'<div class="pcard-sub">프리미어리그 · {MATCH_SEASON_FROM} 시즌 이후 {card["total"]}경기</div></div>'
         '<div class="h2h-top">'
         f'<div class="h2h-team"><div class="pcard-name sm">{escape(card["a"])}</div><div class="pcard-en">{escape(card["a_en"].upper())}</div></div>'
         f'<div class="h2h-score"><span class="hi">{card["gf"]}</span><i>:</i><span>{card["ga"]}</span></div>'

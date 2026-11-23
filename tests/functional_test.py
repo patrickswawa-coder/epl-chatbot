@@ -281,6 +281,44 @@ answers = {run_pipeline("쏘니 골 몇 개야?")[0]["answer"] for _ in range(3)
 check(A, "별명(쏘니)과 본명(손흥민) → 같은 답", len(answers) == 1, list(answers)[0][:40])
 
 # ============================================================
+# 11. 과거 시즌 경기 결과 (2000-01 ~ 2013-14)
+# ============================================================
+A = "11. 과거 시즌"
+from database.aliases import mentioned_names  # noqa: E402
+
+cols, rows = t.run_sql("SELECT COUNT(*), COUNT(DISTINCT season) FROM matches WHERE season < '1415'")
+check(A, "2000-01~2013-14 경기 결과 14시즌 5,320경기", rows[0] == (5320, 14), f"{rows[0]}")
+arsenal = ("SELECT SUM(CASE WHEN (home_team = 'Arsenal' AND home_score > away_score) OR (away_team = 'Arsenal' "
+           "AND away_score > home_score) THEN 1 ELSE 0 END) AS win_count, "
+           "SUM(CASE WHEN home_score = away_score THEN 1 ELSE 0 END) AS draw_count, "
+           "SUM(CASE WHEN (home_team = 'Arsenal' AND home_score < away_score) OR (away_team = 'Arsenal' "
+           "AND away_score < home_score) THEN 1 ELSE 0 END) AS loss_count FROM matches WHERE season = '0304' "
+           "AND (home_team = 'Arsenal' OR away_team = 'Arsenal') AND home_score IS NOT NULL")
+cols, rows = t.run_sql(arsenal)
+check(A, "실제 기록과 일치: 아스널 2003-04 무패(26승 12무 0패)", rows[0] == (26, 12, 0), f"{rows[0]}")
+check(A, "옛 시즌이 섞여도 '최신 시즌'은 2026-27", t.latest_season_code() == "2627", t.latest_season_code() or "")
+for q, expect in [("2005-06 시즌 램파드 골 수", True), ("2003-04 시즌 득점왕은?", True), ("2001-02 시즌 앙리 어시스트", True),
+                  ("2003-04 시즌 아스널 승리 경기 수", False), ("2005-06 시즌 첼시 골 수", False),
+                  ("2008-09 시즌 총 골 수", False), ("손흥민 2019-20 시즌 골", False)]:
+    got = bool(t.pre_event_season_note(q))
+    check(A, f"'{q}' → {'선수 기록 없음 안내' if expect else '정상 조회'}", got == expect, "")
+issue = t.check_sql_semantics("2005-06 시즌 가장 많은 골을 넣은 팀은?",
+                              "SELECT team, COUNT(*) AS goal_count FROM match_events WHERE match_id IN "
+                              "(SELECT match_id FROM matches WHERE season = '0506') GROUP BY team ORDER BY goal_count DESC LIMIT 1")
+check(A, "옛 시즌에 골 이벤트 표 사용 → 거부(경기 스코어로 다시 계산)", bool(issue), (issue or "")[:60])
+r, n = run_pipeline("2003-04 시즌 아스널 승리 경기 수",
+                    "SELECT COUNT(*) AS win_count FROM matches WHERE season = '0304' AND ((home_team = 'Arsenal' "
+                    "AND home_score > away_score) OR (away_team = 'Arsenal' AND away_score > home_score))")
+check(A, "옛 시즌 경기 결과 질문 → 정답(26승)", "26경기" in (r["answer"] or ""), r["answer"] or "")
+r, n = run_pipeline("2005-06 시즌 램파드 골 수")
+check(A, "옛 시즌 선수 기록 질문 → GPT 호출 없이 안내", n == 0 and r["error_code"] == "E04", (r["answer"] or "")[:50])
+r, n = run_pipeline("아스날 맨시티 상대전적")
+check(A, "상대전적 카드가 2000-01 시즌부터 집계", "2000-01" in (r["answer"] or "") and r["card"]["total"] > 24,
+      f"{r['card']['total']}경기")
+check(A, "'맨체스터 더비'의 '더비'를 더비 카운티로 오인하지 않음", mentioned_names("맨체스터 더비 결과") == [], "")
+check(A, "옛 팀 별명 인식(볼튼 → 볼턴 원더러스)", mentioned_names("볼튼 2006-07 승리") == [("team", "볼턴 원더러스")], "")
+
+# ============================================================
 # 결과 출력·저장
 # ============================================================
 out = ROOT / "tests" / "functional_report.csv"
