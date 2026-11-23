@@ -280,6 +280,19 @@ html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
 }
 .st-key-adminlink [data-testid="stPageLink"] a:hover * { color: var(--lime) !important; }
 .hero.compact { padding-bottom: .9rem; margin-bottom: 1.2rem; }
+/* AI 해설 상자 · 문서 근거(RAG) 출처 줄 */
+.ai-comment { border: 1px solid var(--line); border-left: 3px solid var(--lime); background: var(--panel); padding: .85rem 1.1rem; margin: .6rem 0 .4rem; }
+.ai-comment .h { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; margin-bottom: .35rem; }
+.ai-comment .k { font-family: var(--num); letter-spacing: .2em; color: var(--lime); font-size: .9rem; }
+.ai-comment .t { font-size: .74rem; color: var(--mute); }
+.ai-comment p { margin: 0; color: var(--text); line-height: 1.75; font-size: .95rem; }
+[class*="st-key-aibtn_"] button { background: transparent !important; border: 1px solid var(--lime) !important; color: var(--lime) !important; border-radius: 0 !important; padding: .35rem .9rem !important; min-height: 0 !important; }
+[class*="st-key-aibtn_"] button:hover { background: var(--lime) !important; color: var(--ink) !important; }
+[class*="st-key-aibtn_"] button p { color: inherit !important; font-size: .86rem; letter-spacing: .02em; }
+[class*="st-key-aibtn_"] button p::before { content: "✦ "; }
+.doc-src { font-size: .8rem; color: var(--mute); margin: .5rem 0 .2rem; line-height: 1.6; }
+.doc-src .k { font-family: var(--num); letter-spacing: .2em; color: var(--lime); margin-right: .6rem; }
+
 /* 대화 중 상단 제목 = 첫 화면으로 돌아가는 버튼 */
 .st-key-herohome { gap: .45rem !important; padding-bottom: .9rem; margin-bottom: 1.2rem; border-bottom: 1px solid var(--line); }
 .st-key-herohome [data-testid="stMarkdownContainer"] p.home-kicker { font-family: var(--num); letter-spacing: .32em; font-size: .95rem; line-height: 1.3; color: var(--lime); margin: 0 !important; }

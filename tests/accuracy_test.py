@@ -12,7 +12,7 @@
 채점 규칙
   value   : 기준 SQL의 결과값(숫자·이름)이 챗봇의 답변 문장 또는 조회 결과 표에 들어 있으면 정답
   error   : 챗봇이 지정한 오류 코드(E01·E02 등)를 돌려주면 정답
-  fallback: 오류 없이 GPT 지식 답변(gpt_fallback)으로 처리하고, 필수 단어가 들어 있으면 정답
+  fallback: 오류 없이 문서 근거 답변(rag) 또는 GPT 지식 답변(gpt_fallback)으로 처리하고, 필수 단어가 들어 있으면 정답
 결과는 tests/accuracy_report.csv 에 저장된다.
 """
 import argparse
@@ -179,7 +179,7 @@ def judge(kind, expected, result):
     if kind == "fallback":
         ok = (
             not result.get("error")
-            and result.get("answer_source") == "gpt_fallback"
+            and result.get("answer_source") in ("gpt_fallback", "rag")  # rag = 문서 근거 답변
             and expected in (result.get("answer") or "")
         )
         return ok, f"필수단어={expected}"

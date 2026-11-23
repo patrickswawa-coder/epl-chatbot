@@ -1524,8 +1524,22 @@ def answer_question(
                 )
                 continue
 
-            # 축구 관련이지만 DB로 답할 수 없는 질문 → GPT 지식 답변 (배지로 구분)
+            # 축구 관련이지만 DB로 답할 수 없는 질문
+            #   1) 직접 정리한 문서(경기 규칙·리그 제도·구단 정보)에서 찾아 근거 있는 답 (RAG)
+            #   2) 문서에도 없으면 GPT 지식 답변 (배지로 구분)
             result["sql"] = ""
+            try:
+                from rag import answer_from_docs
+
+                doc = answer_from_docs(question, history)
+            except Exception:
+                doc = None
+            if doc:
+                result["answer"] = doc["answer"]
+                result["answer_source"] = "rag"
+                result["sources"] = doc["sources"]
+                return result
+
             fallback_answer = None
             try:
                 fallback_answer = generate_gpt_fallback_answer(question, history)

@@ -22,6 +22,10 @@ epl-chatbot/
 ├── tests/functional_test.py  # 기능·예외·통합 테스트 (키 없이 실행)
 ├── tests/trace_question.py   # 질문 하나의 처리 과정(SQL·거부 이유) 추적 (OpenAI 키 필요)
 ├── live_scores.py            # 진행 중인 EPL 경기 실시간 스코어 (API-Football 무료)
+├── ai_commentary.py          # AI 해설: DB 기록만으로 GPT가 쓴 해설 + 숫자 검증
+├── rag.py                    # 문서 근거 답변(RAG): knowledge/ 문서 검색 → 근거 답변 + 출처
+├── knowledge/                # RAG 문서 (경기 규칙·리그 제도·구단 정보·데이터 안내, 직접 작성)
+├── tests/ai_features_check.py # AI 해설·RAG 실제 GPT 확인 (OpenAI 키 필요)
 ├── requirements.txt
 ├── .env                      # API 키·관리자 비밀번호 (직접 만들기, 공유 금지)
 ├── database/
@@ -99,6 +103,14 @@ python tests/accuracy_test.py           # 정확도 테스트 (OpenAI 호출 발
 7. DB에 없는 축구 지식은 GPT 지식으로 답하되 "DB로 확인되지 않음" 경고를 표시
 8. 인사이트 줄은 JOIN·평균·비율 표현을 막고, `ENABLE_INSIGHT=0`으로 끌 수 있음
 9. 모든 처리는 `app_log.db`에 기록, 관리자 화면에서 오류 코드별로 확인
+
+## AI 해설과 문서 근거 답변 (RAG)
+- **AI 해설**: 선수 프로필·시즌별 골·선수 비교·팀 상대전적 카드 아래 [AI 해설 보기]를 누르면,
+  코드가 DB에서 모은 기록만 가지고 GPT가 3~4문장 해설을 씁니다. 해설 속 숫자가 기록에 없으면 다시 쓰게 하고,
+  그래도 틀리면 표시하지 않습니다. 해설에 쓴 기록은 화면에서 펼쳐 볼 수 있습니다.
+- **문서 근거 답변**: DB 기록으로 답할 수 없는 질문(경기 규칙, 리그 제도, 구단 정보, 데이터 출처)은
+  `knowledge/` 문서에서 가까운 문단 3개를 찾아(임베딩 + 키워드) 그 내용으로만 답하고 출처를 보여 줍니다.
+  문서에 없으면 기존처럼 GPT 일반 지식 답변(경고 표시)으로 넘어갑니다. 문서를 고치면 다음 질문부터 바로 반영됩니다.
 
 ## 오류 코드
 | 코드 | 의미 |

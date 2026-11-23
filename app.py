@@ -54,6 +54,7 @@ DB_PATH = BASE_DIR / "football_history.db"
 from cards import card_html  # noqa: E402
 from theme import apply_theme  # noqa: E402
 from live_scores import get_live_matches, live_html  # noqa: E402
+from ai_commentary import SUPPORTED as COMMENTARY_TYPES, generate_commentary  # noqa: E402
 from views import (  # noqa: E402
     home_numbers,
     home_stats_html,
@@ -181,7 +182,7 @@ def render_insight(insight: str | None) -> None:
     )
 
 
-def render_answer(result: dict, answer_text: str) -> None:
+def render_answer(result: dict, answer_text: str, idx: int | None = None) -> None:
     """
     답변 한 개를 그린다. 방금 받은 답변과 대화 기록 속 답변이 같은 모양이 되도록
     두 곳 모두 이 함수만 사용한다.
@@ -206,6 +207,8 @@ def render_answer(result: dict, answer_text: str) -> None:
         render_scoreboard(result, answer_text)
     st.markdown(answer_text)
     render_insight(result.get("insight"))
+    render_sources(result)
+    render_commentary(result, idx)
 
     rows = result.get("rows") or []
     if rows:
@@ -229,13 +232,56 @@ def render_answer(result: dict, answer_text: str) -> None:
     # 데이터가 없을 때 (GPT 지식 기반 답변이거나 E04 안내문이 이미 답변에 있으면 제외)
     if (
         not rows
-        and result.get("answer_source") != "gpt_fallback"
+        and result.get("answer_source") not in ("gpt_fallback", "rag")
         and result.get("error_code") != "E04"
     ):
         st.info(
             "조건에 맞는 데이터가 없습니다. "
             "선수명, 팀명, 시즌 등을 조금 다르게 표현해보세요."
         )
+
+
+def render_sources(result: dict) -> None:
+    """문서 근거 답변(RAG)이면 근거로 쓴 문서 문단을 보여 준다."""
+    sources = result.get("sources") or []
+    if result.get("answer_source") != "rag" or not sources:
+        return
+    names = " · ".join(f"{s['doc']} › {s['title'].split(' (')[0]}" for s in sources)
+    st.markdown(
+        f'<div class="doc-src"><span class="k">SOURCES</span>{escape(names)}</div>',
+        unsafe_allow_html=True,
+    )
+    with st.expander(f"근거 문서 {len(sources)}개 보기"):
+        for s in sources:
+            st.markdown(f"**{s['doc']} › {s['title']}**")
+            st.caption(s["text"])
+
+
+def render_commentary(result: dict, idx: int | None) -> None:
+    """빠른 경로 카드(프로필·비교·상대전적) 아래 [AI 해설] 버튼과 해설 상자."""
+    card = result.get("card") or {}
+    if idx is None or card.get("type") not in COMMENTARY_TYPES:
+        return
+    com = result.get("commentary")
+    if com is None:
+        with st.container(key=f"aibtn_{idx}"):
+            if st.button("AI 해설 보기", key=f"ai_comment_{idx}", help="DB 기록만 가지고 GPT가 짧은 해설을 씁니다"):
+                with st.spinner("DB 기록으로 해설을 쓰는 중..."):
+                    result["commentary"] = generate_commentary(card)
+                st.rerun()
+        return
+    if com.get("ok"):
+        st.markdown(
+            '<div class="ai-comment"><div class="h"><span class="k">AI 해설</span>'
+            '<span class="t">DB 기록만 사용 · 숫자 검증 통과</span></div>'
+            f'<p>{escape(com["text"])}</p></div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.caption(f"AI 해설을 만들지 못했습니다. {com.get('error', '')}")
+    if com.get("facts"):
+        with st.expander("해설에 쓴 기록 보기"):
+            st.markdown(com["facts"])
 
 
 def render_fallback_badge(answer_source: str | None) -> None:
@@ -499,10 +545,10 @@ if not _has_chat:
 # 기존 대화 출력
 # =========================================================
 
-for msg in st.session_state.messages:
+for _i, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):
         if msg["role"] == "assistant" and msg.get("result"):
-            render_answer(msg["result"], msg["content"])
+            render_answer(msg["result"], msg["content"], _i)
         else:
             st.markdown(msg["content"])
 

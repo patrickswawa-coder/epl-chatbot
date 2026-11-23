@@ -470,6 +470,114 @@ check(A, "Understat 점검 중이면 football-data 스코어 보완으로 진행
 check(A, "보완까지 실패하면 실패로 끝남(로그에 [실패])", code_fail == 1, f"종료 코드 {code_fail}")
 
 # ============================================================
+# 14. AI 해설 (DB 기록 → GPT 해설 → 숫자 검증)
+# ============================================================
+A = "14. AI 해설"
+import ai_commentary as ac  # noqa: E402
+from fast_path import try_fast_path as _fp  # noqa: E402
+
+cards = {k: _fp(q)["card"] for k, q in (("profile", "손흥민 알려줘"), ("seasons", "케인 시즌별 골 수"),
+                                         ("compare", "손흥민이랑 케인 비교해줘"), ("h2h", "아스날 맨시티 상대전적"))}
+facts = {k: ac.build_facts(c) for k, c in cards.items()}
+check(A, "카드 4종(프로필·시즌별·비교·상대전적)에서 기록을 모음", all(f and f["text"] for f in facts.values()),
+      ", ".join(facts))
+check(A, "기록의 골 수가 빠른 경로 카드 값과 같음", "통산 골: 127" in facts["profile"]["text"]
+      and "통산 골: 210" in facts["seasons"]["text"], "손흥민 127 / 케인 210")
+check(A, "상대전적 기록에 승·무·패와 최근 경기 포함",
+      f"승리 {cards['h2h']['w']}, 무승부 {cards['h2h']['d']}" in facts["h2h"]["text"] and "최근 맞대결" in facts["h2h"]["text"])
+check(A, "해설을 지원하지 않는 결과는 건너뜀", ac.build_facts({"type": "goals"}) is None)
+
+
+class FakeChat:
+    def __init__(self, *replies):
+        self.replies, self.calls = list(replies), 0
+
+    def __call__(self, messages):
+        self.calls += 1
+        return self.replies.pop(0) if self.replies else ""
+
+
+ac._cache.clear()
+good = "2014-15 시즌 이후 기록 기준으로 손흥민은 통산 127골 71어시스트를 남겼습니다. 2021-22 시즌 23골이 최고 기록입니다."
+fc = FakeChat(good)
+r = ac.generate_commentary(cards["profile"], chat=fc)
+check(A, "기록 속 숫자만 쓴 해설은 통과", r["ok"] and fc.calls == 1, r["text"][:30])
+fc2 = FakeChat("x")
+r2 = ac.generate_commentary(cards["profile"], chat=fc2)
+check(A, "같은 기록이면 저장해 둔 해설을 다시 씀(GPT 호출 없음)", r2["ok"] and fc2.calls == 0)
+ac._cache.clear()
+fc = FakeChat("손흥민은 통산 130골을 넣었습니다.", good)
+r = ac.generate_commentary(cards["profile"], chat=fc)
+check(A, "기록에 없는 숫자(130골)가 나오면 다시 쓰게 함", r["ok"] and fc.calls == 2, f"GPT 호출 {fc.calls}회")
+ac._cache.clear()
+fc = FakeChat("손흥민은 통산 130골.", "손흥민은 통산 131골.")
+r = ac.generate_commentary(cards["profile"], chat=fc)
+check(A, "두 번 다 틀리면 해설을 보여주지 않음", not r["ok"] and ("130" in r["error"] or "131" in r["error"]), r["error"][:40])
+ac._cache.clear()
+fc = FakeChat("아스널과 맨체스터 시티는 2000-01 시즌 이후 50경기에서 맞붙었습니다. 아스널이 19승, 맨체스터 시티가 20승을 거뒀습니다.")
+r = ac.generate_commentary(cards["h2h"], chat=fc)
+check(A, "상대전적 해설도 같은 방식으로 검증", r["ok"], r["text"][:30])
+_orig_default = ac._default_chat
+ac._default_chat = lambda: None
+ac._cache.clear()
+r = ac.generate_commentary(cards["compare"])
+ac._default_chat = _orig_default
+check(A, "OpenAI 키가 없으면 해설 없이 안내", not r["ok"] and "키" in r["error"], r["error"])
+
+# ============================================================
+# 15. 문서 근거 답변 (RAG)
+# ============================================================
+A = "15. 문서 근거 답변(RAG)"
+import rag  # noqa: E402
+
+chunks = rag.load_chunks()
+docs = sorted({c["doc"] for c in chunks})
+check(A, "문서 4개를 문단으로 나눠 읽음", len(docs) == 4 and len(chunks) >= 40, f"{len(docs)}개 문서, {len(chunks)}개 문단")
+EXPECT = [
+    ("오프사이드 규칙을 간단히 설명해줘", "오프사이드"),
+    ("토트넘의 홈구장 이름이 뭐야?", "토트넘 홋스퍼"),
+    ("프리미어리그에서 승점은 어떻게 계산해?", "승점 계산"),
+    ("승점 같으면 순위 어떻게 정해?", "승점이 같을 때 순위"),
+    ("강등은 몇 팀이야?", "강등과 승격"),
+    ("VAR은 언제 개입해?", "VAR"),
+    ("맨유 별명이 뭐야?", "맨체스터 유나이티드"),
+    ("xG가 뭐야?", "xG"),
+    ("경고 누적 몇 장이면 결장해?", "경고 누적 징계"),
+]
+hits = [(q, rag.retrieve(q, use_embeddings=False)) for q, _ in EXPECT]
+ok = all(r and r[0]["title"].startswith(t) for (q, r), (_, t) in zip(hits, EXPECT))
+miss = [q for (q, r), (_, t) in zip(hits, EXPECT) if not (r and r[0]["title"].startswith(t))]
+check(A, f"질문 {len(EXPECT)}개 모두 맞는 문단을 1위로 찾음(키워드 검색)", ok, ", ".join(miss) or "별명(맨유·토트넘)도 인식")
+check(A, "축구와 무관한 질문은 문서를 찾지 않음", rag.retrieve("오늘 점심 뭐 먹지?", use_embeddings=False) == [])
+
+fc = FakeChat("토트넘 홋스퍼의 홈구장은 토트넘 홋스퍼 스타디움으로, 2019년 4월에 문을 열었습니다.")
+r = rag.answer_from_docs("토트넘의 홈구장 이름이 뭐야?", chat=fc, use_embeddings=False)
+check(A, "찾은 문서로만 답하고 출처를 함께 돌려줌", r and "스타디움" in r["answer"] and r["sources"][0]["title"].startswith("토트넘"),
+      r and r["sources"][0]["title"][:12])
+fc = FakeChat("NO_ANSWER")
+check(A, "문서에 답이 없으면(NO_ANSWER) 넘김 → GPT 지식 답변으로", rag.answer_from_docs("리버풀 감독 누구야?", chat=fc, use_embeddings=False) is None and fc.calls == 1)
+fc = FakeChat("토트넘 홋스퍼 스타디움은 6만 2천 명이 들어갑니다. 수용 인원은 62850명입니다.")
+check(A, "문서에 없는 숫자(수용 인원)를 지어내면 쓰지 않음", rag.answer_from_docs("토트넘 홈구장 몇 명 들어가?", chat=fc, use_embeddings=False) is None)
+fc = FakeChat("x")
+check(A, "선수 질문(덕베가 누구야?)은 문서를 찾지 않고 바로 넘김", rag.answer_from_docs("덕베가 누구야?", chat=fc, use_embeddings=False) is None and fc.calls == 0)
+
+_orig_rag = rag.answer_from_docs
+rag.answer_from_docs = lambda q, h=None: {"answer": "토트넘의 홈구장은 토트넘 홋스퍼 스타디움입니다.",
+                                          "sources": [{"doc": "구단 정보", "title": "토트넘 홋스퍼", "text": "", "score": 0.5}]}
+try:
+    r, n = run_pipeline("토트넘의 홈구장 이름이 뭐야?", t.NotInDBError("NOT_IN_DB"), fallback="GPT 지식 답변")
+finally:
+    rag.answer_from_docs = _orig_rag
+check(A, "DB에 없는 질문 → 문서 근거 답변(rag)이 GPT 지식 답변보다 먼저", r["answer_source"] == "rag" and r["sources"]
+      and not r.get("error"), f"출처={r['answer_source']}")
+rag.answer_from_docs = lambda q, h=None: None
+try:
+    r, n = run_pipeline("리버풀 감독 누구야?", t.NotInDBError("NOT_IN_DB"), fallback="GPT 지식 답변")
+finally:
+    rag.answer_from_docs = _orig_rag
+check(A, "문서에도 없으면 기존처럼 GPT 지식 답변(경고 표시)", r["answer_source"] == "gpt_fallback", f"출처={r['answer_source']}")
+
+# ============================================================
 # 결과 출력·저장
 # ============================================================
 out = ROOT / "tests" / "functional_report.csv"

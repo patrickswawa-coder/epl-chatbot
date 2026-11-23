@@ -56,6 +56,9 @@ def meta_html(result: dict) -> str:
         tags.append('<span class="ok">DB 조회 결과</span>')
     elif src == "gpt_fallback":
         tags.append('<span class="warn">GPT 일반 지식 · 참고용</span>')
+    elif src == "rag":
+        tags.append('<span class="ok">문서 근거 답변</span>')
+        tags.append(f"<span>문서 {len(result.get('sources') or [])}개 검색</span>")
     if result.get("fast_path"):
         tags.append("<span>빠른 경로 · 고정 SQL</span>")
     elif result.get("sql"):
