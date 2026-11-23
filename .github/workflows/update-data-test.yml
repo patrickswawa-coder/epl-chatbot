@@ -1,25 +1,28 @@
-# [시험용] GitHub 서버에서 데이터 출처에 접속되는지만 확인한다. DB를 커밋하지 않는다.
+# [시험용 브랜치 전용] 과거 시즌 경기 결과를 GitHub 서버에서 받아 이 브랜치의 DB에 넣는다. main에는 영향 없음.
 name: data-update-test
 on:
   push:
     branches: [test/auto-update]
+    paths: [".github/workflows/update-data-test.yml", "data_collection/collect_history_results.py"]
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
-  test:
+  history:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Understat 접속 확인
-        continue-on-error: true
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - name: 과거 시즌 경기 결과 수집 (2000-01 ~ 2013-14)
+        run: python data_collection/collect_history_results.py
+      - name: 수집 결과를 이 시험 브랜치에 저장
         run: |
-          curl -sS -A "Mozilla/5.0" -o /tmp/u.html -w "HTTP %{http_code}, %{size_download} bytes\n" https://understat.com/league/EPL/2026
-          head -c 600 /tmp/u.html; echo
-          grep -c "datesData\|teamsData" /tmp/u.html || true
-          grep -io "cloudflare\|captcha\|access denied\|just a moment" /tmp/u.html | sort | uniq -c || true
-      - name: football-data.co.uk 접속 확인
-        continue-on-error: true
-        run: |
-          curl -sS -o /tmp/e0.csv -w "HTTP %{http_code}, %{size_download} bytes\n" https://www.football-data.co.uk/mmz4281/9394/E0.csv
-          head -3 /tmp/e0.csv
-          curl -sS -o /tmp/e1.csv -w "HTTP %{http_code}\n" https://www.football-data.co.uk/mmz4281/2627/E0.csv
-          tail -2 /tmp/e1.csv
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add football_history.db
+          git diff --cached --quiet || git commit -m "과거 시즌 경기 결과 추가 (자동 수집, 시험 브랜치)"
+          git push
