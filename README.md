@@ -20,6 +20,7 @@ epl-chatbot/
 ├── tests/accuracy_test.py    # 30문항 정확도 테스트 (OpenAI 키 필요)
 ├── tests/fast_path_test.py   # 빠른 경로 정답 대조 테스트 (키 없이 실행)
 ├── tests/functional_test.py  # 기능·예외·통합 테스트 (키 없이 실행)
+├── tests/trace_question.py   # 질문 하나의 처리 과정(SQL·거부 이유) 추적 (OpenAI 키 필요)
 ├── live_scores.py            # 진행 중인 EPL 경기 실시간 스코어 (API-Football 무료)
 ├── requirements.txt
 ├── .env                      # API 키·관리자 비밀번호 (직접 만들기, 공유 금지)
