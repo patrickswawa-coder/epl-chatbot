@@ -341,6 +341,19 @@ html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
 /* 답변 패널 안의 카드는 패널과 하나로 (라임 선 겹침 제거) */
 [data-testid="stChatMessageContent"] .pcard { border-top: 0; background: transparent; margin: -.4rem -1.5rem .6rem; }
 
+/* 진행 중 경기 (LIVE) */
+.live-box { background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--lime); margin: 0 0 1.4rem; }
+.live-head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; padding: .8rem 1.1rem .5rem; }
+.live-head .t { font-family: var(--num); letter-spacing: .22em; font-size: .95rem; color: var(--lime); }
+.live-head .t b { font-family: 'Noto Sans KR', sans-serif; letter-spacing: .02em; font-weight: 500; color: var(--soft); font-size: .85rem; margin-left: .5rem; }
+.live-head .s { margin-left: auto; font-size: .72rem; color: var(--mute); }
+.live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 0 rgba(200,255,61,.6); animation: livepulse 1.6s infinite; }
+@keyframes livepulse { 0% { box-shadow: 0 0 0 0 rgba(200,255,61,.55); } 70% { box-shadow: 0 0 0 9px rgba(200,255,61,0); } 100% { box-shadow: 0 0 0 0 rgba(200,255,61,0); } }
+.live-row { display: grid; grid-template-columns: 70px minmax(0, 1fr) 90px minmax(0, 1fr); gap: .8rem; align-items: center; padding: .55rem 1.1rem; border-top: 1px solid var(--line); font-size: .92rem; color: var(--soft); }
+.live-row .live-min { font-family: var(--num); color: var(--lime); font-size: 1.05rem; letter-spacing: .05em; }
+.live-row .rh { text-align: right; }
+.live-row .rs { font-family: var(--num); font-size: 1.5rem; text-align: center; color: var(--lime); letter-spacing: .06em; }
+
 /* 사이드바 추천 질문 그룹 */
 .side-group { font-size: .72rem; color: var(--lime) !important; margin: .9rem 0 .1rem; letter-spacing: .04em; }
 [data-testid="stSidebar"] .stButton > button { min-height: 38px; padding: .45rem 0 !important; font-size: .88rem; }
@@ -354,6 +367,9 @@ html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
     [data-testid="stHeader"] { background: rgba(7, 17, 13, .94); }
     .leaders-head { flex-direction: column; gap: .2rem; }
     .h2h-team .pcard-name.sm { font-size: 1.15rem; }
+    .live-head .s { margin-left: 0; width: 100%; }
+    .live-row { grid-template-columns: 2.6rem minmax(0, 1fr) auto minmax(0, 1fr); gap: .4rem; padding: .5rem 1.1rem; font-size: .85rem; }
+    .live-row .rs { font-size: 1.25rem; }
     .home-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .home-stats .n { font-size: 2rem; }
     .lb-row { grid-template-columns: 1.8rem minmax(0, 1fr) 3.6rem; gap: .5rem; }

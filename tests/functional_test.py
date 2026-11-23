@@ -319,6 +319,54 @@ check(A, "'맨체스터 더비'의 '더비'를 더비 카운티로 오인하지 
 check(A, "옛 팀 별명 인식(볼튼 → 볼턴 원더러스)", mentioned_names("볼튼 2006-07 승리") == [("team", "볼턴 원더러스")], "")
 
 # ============================================================
+# 12. 진행 중 경기 (실시간 스코어)
+# ============================================================
+A = "12. 실시간 경기"
+import live_scores as live  # noqa: E402
+
+SAMPLE = {"errors": [], "response": [
+    {"league": {"id": 39}, "fixture": {"status": {"short": "2H", "elapsed": 67}},
+     "teams": {"home": {"name": "Arsenal"}, "away": {"name": "Newcastle"}}, "goals": {"home": 2, "away": 1}},
+    {"league": {"id": 39}, "fixture": {"status": {"short": "HT", "elapsed": 45}},
+     "teams": {"home": {"name": "Wolves"}, "away": {"name": "Chelsea"}}, "goals": {"home": 0, "away": 0}},
+    {"league": {"id": 262}, "fixture": {"status": {"short": "1H", "elapsed": 12}},
+     "teams": {"home": {"name": "Club Queretaro"}, "away": {"name": "Necaxa"}}, "goals": {"home": 0, "away": 0}},
+]}
+parsed = live.parse_live(SAMPLE)
+check(A, "여러 리그 중 EPL 경기만 골라냄", len(parsed) == 2, f"{len(parsed)}경기")
+check(A, "API 팀 이름을 DB 이름으로 맞춤(Newcastle → Newcastle United)", parsed[0]["away"] == "Newcastle United"
+      and parsed[1]["home"] == "Wolverhampton Wanderers", "")
+html = live.live_html(parsed, __import__("views").ko_name)
+check(A, "카드에 한글 팀명·시간·스코어 표시", all(x in html for x in ("아스널", "뉴캐슬", "67'", "2 - 1", ">HT<")), "")
+
+orig_key = os.environ.pop("API_FOOTBALL_KEY", None)
+live._state.update(matches=[], fetched=0.0, calls=0, error=None)
+check(A, "키가 없으면 요청 없이 빈 목록(앱은 그대로)", live.get_live_matches(fetch=lambda: SAMPLE) == [] and live._state["calls"] == 0)
+os.environ["API_FOOTBALL_KEY"] = "test-key"
+calls = []
+fake = lambda: (calls.append(1), SAMPLE)[1]  # noqa: E731
+t0 = 1_000_000.0
+live.get_live_matches(now=t0, fetch=fake)
+live.get_live_matches(now=t0 + 60, fetch=fake)
+check(A, "경기 중에는 3분 안에 다시 요청하지 않음", len(calls) == 1, f"요청 {len(calls)}회")
+live.get_live_matches(now=t0 + 200, fetch=fake)
+check(A, "3분이 지나면 새로 요청", len(calls) == 2, f"요청 {len(calls)}회")
+live._state.update(matches=[], fetched=t0, calls=0)
+live.get_live_matches(now=t0 + 600, fetch=fake)
+check(A, "진행 중 경기가 없으면 30분 간격", len(calls) == 2, f"요청 {len(calls)}회")
+live._state.update(matches=[], fetched=0.0, calls=live.DAILY_BUDGET)
+before = len(calls)
+live.get_live_matches(now=t0 + 99999, fetch=fake)
+check(A, "하루 90회를 넘으면 더 요청하지 않음(무료 한도 보호)", len(calls) == before, "")
+live._state.update(matches=parsed, fetched=0.0, calls=0)
+kept = live.get_live_matches(now=t0, fetch=lambda: {"errors": {"requests": "limit"}, "response": []})
+check(A, "API 오류가 나도 앱은 계속 동작(직전 결과 유지)", kept == parsed and live._state["error"], live._state["error"] or "")
+if orig_key is None:
+    os.environ.pop("API_FOOTBALL_KEY", None)
+else:
+    os.environ["API_FOOTBALL_KEY"] = orig_key
+
+# ============================================================
 # 결과 출력·저장
 # ============================================================
 out = ROOT / "tests" / "functional_report.csv"
