@@ -1,0 +1,26 @@
+# [시험용] API-Football 무료 키로 이번 시즌·실시간 경기를 받을 수 있는지만 확인한다. 키 값은 출력하지 않는다.
+name: api-football-test
+on:
+  push:
+    branches: [test/auto-update]
+    paths: [".github/api-test-trigger"]
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      KEY: ${{ secrets.API_FOOTBALL_KEY }}
+    steps:
+      - name: 키 등록 여부
+        run: '[ -n "$KEY" ] && echo "키 있음" || { echo "키 없음: GitHub 저장소 Settings > Secrets에 API_FOOTBALL_KEY를 등록하세요"; exit 1; }'
+      - name: 남은 요청 수·플랜
+        run: curl -sS -H "x-apisports-key: $KEY" https://v3.football.api-sports.io/status | python3 -c "import json,sys;d=json.load(sys.stdin);r=d.get('response') or {};print('errors:',d.get('errors'));print('plan:',(r.get('subscription') or {}).get('plan'),'| requests:',r.get('requests'))"
+      - name: 시즌별 접근 가능 여부 (EPL)
+        run: |
+          for s in 2026 2025 2024; do
+            curl -sS -H "x-apisports-key: $KEY" "https://v3.football.api-sports.io/fixtures?league=39&season=$s" \
+            | python3 -c "import json,sys;d=json.load(sys.stdin);print('$s 시즌: 경기',d.get('results'),'| errors:',d.get('errors'))"
+          done
+      - name: 진행 중 경기 조회 (실시간)
+        run: curl -sS -H "x-apisports-key: $KEY" "https://v3.football.api-sports.io/fixtures?live=39" | python3 -c "import json,sys;d=json.load(sys.stdin);print('진행 중 EPL 경기:',d.get('results'),'| errors:',d.get('errors'))"
