@@ -36,6 +36,7 @@ epl-chatbot/
     ├── dedupe_sources.py           # 중복 골 병합 (--apply로 실제 반영)
     ├── update_current_season.py    # 진행 중인 시즌 갱신 (Understat, 무료, 반복 실행 가능)
     ├── collect_history_results.py  # 2000-01~2013-14 경기 결과 (football-data.co.uk)
+    ├── fill_scores_football_data.py # Understat 장애 시 이번 시즌 스코어만 보완 (football-data.co.uk)
     ├── daily_update.bat            # 매일 자동 갱신 (작업 스케줄러용)
     └── auto_collect.py             # 경기 종료 자동 수집 (30분 간격)
 ```
@@ -132,7 +133,11 @@ $t = New-ScheduledTaskTrigger -Daily -At 10:00
 $s = New-ScheduledTaskSettingsSet -StartWhenAvailable
 Register-ScheduledTask -TaskName "EPL챗봇 데이터 갱신" -Action $a -Trigger $t -Settings $s
 ```
-기록은 `data_collection/daily_update.log`에 남습니다. 지우려면 `Unregister-ScheduledTask -TaskName "EPL챗봇 데이터 갱신"`.
+기록은 `data_collection/daily_update.log`에 남습니다(보기: `Get-Content data_collection\daily_update.log -Encoding UTF8 -Tail 20`).
+
+Understat가 점검 중이면(2026-11 초부터 "We will come back soon" 안내만 보냄) 끝난 경기 **스코어만** football-data.co.uk에서 채웁니다.
+득점자·어시스트는 Understat가 돌아온 뒤 첫 실행 때 같은 경기를 덮어쓰며 들어갑니다. soccerdata가 저장해 둔 안내 페이지는 실행할 때마다 지우므로 Understat가 돌아오면 자동으로 정상 수집됩니다.
+football-data.co.uk는 주말 경기를 보통 하루 이틀 뒤에 올립니다. 지우려면 `Unregister-ScheduledTask -TaskName "EPL챗봇 데이터 갱신"`.
 
 ### 실시간 경기 카드
 배포 환경의 Secrets에 `API_FOOTBALL_KEY`를 넣으면, EPL 경기가 진행 중일 때 첫 화면 위에 LIVE 카드가 보입니다.
